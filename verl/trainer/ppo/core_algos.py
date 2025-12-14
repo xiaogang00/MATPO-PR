@@ -257,24 +257,31 @@ def compute_grpo_outcome_advantage_turn(
             shape is (bs, response_length)
     """
     ##scores = token_level_rewards.sum(dim=-1)
-    scores = token_level_rewards.sum(dim=-1)
-    scores_original = token_level_rewards
+    ##scores = token_level_rewards.sum(dim=-1)
+    scores = token_level_rewards.clone()
+    scores_original = token_level_rewards.clone()
     scores_subagent = token_level_rewards_subagent.sum(dim=-1)
 
     loss_mask = response_mask.clone()
     length = scores.shape[0]
     reward_location_mask = torch.zeros_like(token_level_rewards)
     end_locations = []
+    scores_list = []
     for i in range(length):
         loss_mask_this = loss_mask[i]
         end_location = [j-1 for j in range(1, len(loss_mask_this)) if (loss_mask_this[j-1] == 1 and loss_mask_this[j] == 0)]
         if loss_mask_this[-1] == 1:
             end_location.append(len(loss_mask_this)-1)
+        scores_list_this = []
         for j in range(len(end_location)):
             reward_location_mask[i, end_location[j]] = 1
+            scores_list_this.append(scores[i, end_location[j]])
         end_locations.append(end_location)
+        '''
         if len(end_location) > 1:
             scores[i] = scores[i] * 1.0 / len(end_location)
+        '''
+        scores_list.append(scores_list_this)
 
     parent_idx_list = np.array([None] * len(token_level_rewards_subagent))
     for i in range(len(token_level_rewards_subagent)):
@@ -287,7 +294,8 @@ def compute_grpo_outcome_advantage_turn(
     with torch.no_grad():
         bsz = scores.shape[0]
         for i in range(bsz):
-            id2score[index[i]].append(scores[i])
+            ##id2score[index[i]].append(scores_list[i])
+            id2score[index[i]] = id2score[index[i]] + scores_list[i]
         for idx in id2score:
             if len(id2score[idx]) == 1:
                 id2mean[idx] = torch.tensor(0.0)
@@ -304,6 +312,7 @@ def compute_grpo_outcome_advantage_turn(
             else:
                 scores_original[i] = scores_original[i] - id2mean[index[i]]
                 scores_subagent[parent_idx_list==i] = scores_subagent[parent_idx_list==i] - id2mean[index[i]]
+            
             scores_original[i] = scores_original[i] * reward_location_mask[i]
             end_location_this = end_locations[i]
             for j in range(len(end_location_this)):
@@ -312,10 +321,9 @@ def compute_grpo_outcome_advantage_turn(
                 location_current = end_location_this[j]
                 scores_original[i, location_previous:location_current] = scores_original[i, location_current]
                 location_previous = location_current+1
+            
         scores_original = scores_original * response_mask
         scores_subagent = scores_subagent.unsqueeze(-1) * response_mask_subagent
-
-        ##import pdb; pdb.set_trace()
     return scores_original, scores_original, scores_subagent, scores_subagent
 
 @register_adv_est(AdvantageEstimator.GRPO_PASSK) # or simply: @register_adv_est("grpo_passk")
