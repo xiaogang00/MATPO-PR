@@ -196,7 +196,6 @@ def apply_kl_penalty(data: DataProto, kl_ctrl: core_algos.AdaptiveKLController, 
     # according to https://github.com/huggingface/trl/blob/951ca1841f29114b969b57b26c7d3e80a39f75a0/trl/trainer/ppo_trainer.py#L837
     kl_ctrl.update(current_kl=current_kl, n_steps=batch_size)
     data.batch["token_level_rewards"] = token_level_rewards
-
     metrics = {"actor/reward_kl_penalty": current_kl, "actor/reward_kl_penalty_coeff": beta}
 
     return data, metrics
@@ -1101,7 +1100,6 @@ class RayPPOTrainer:
                             batch.batch["reward_baselines"] = reward_baseline_tensor
                             del gen_baseline_batch, gen_baseline_output
                     # toggle to control whether use subagent-tool rollouts in GRPO training
-                    
                     reqs_from_subagents_serialized = gen_batch_output.non_tensor_batch["reqs_from_subagents_serialized"]
                     
                     if self.config.actor_rollout_ref.rollout.get("include_subagent_tool_rollout_in_loss", False):
@@ -1247,7 +1245,7 @@ class RayPPOTrainer:
                         # compute advantages, executed on the driver process
 
                         norm_adv_by_std_in_grpo = self.config.algorithm.get("norm_adv_by_std_in_grpo", True)  # GRPO adv normalization factor
-                        
+
                         if include_subagent_tool_rollout_in_loss:
                             # in multi-agent setting, pop out the main-agent-rollouts to avoid computing advantage for subagent-tool-rollouts and padded rollouts
                             batch, batch_from_subagent_tool, batch_padded = extract_main_agent_rollouts(batch)
@@ -1380,6 +1378,40 @@ class RayPPOTrainer:
                                 dict_round_score["score_sum/subagent_tool"] += np.sum(scores_from_subagent_tool)
                                 dict_round_score["score_count/subagent_tool"] += len(scores_from_subagent_tool)
                                 dict_round_score["score_round/subagent_tool"] = dict_round_score["score_sum/subagent_tool"] / dict_round_score["score_count/subagent_tool"] if dict_round_score["score_count/subagent_tool"] > 0 else 0.0
+                            
+                            if self.config.algorithm.adv_estimator == AdvantageEstimator.GRPO_TURN:
+                                ### record the mean of intermediate mean of reward, and also the first index to produce the correct prediction
+                                intermediate_reward_list = reward_extra_infos_dict["accuracy_reward_original"]
+                                intermediate_reward_list = np.array(intermediate_reward_list)
+                                intermediate_reward_list = intermediate_reward_list[~is_from_subagent_tool]
+                                intermediate_reward_list = [list(map(float, reward.split("&"))) for reward in intermediate_reward_list]
+
+                                intermediate_reward_list_added = reward_extra_infos_dict["accuracy_reward_original_added"]
+                                intermediate_reward_list_added = np.array(intermediate_reward_list_added)
+                                intermediate_reward_list_added = intermediate_reward_list_added[~is_from_subagent_tool]
+                                intermediate_reward_list_added = [list(map(float, reward.split("&"))) for reward in intermediate_reward_list_added]
+                                
+                                intermediate_reward_list_mean = [np.mean(lst) for lst in intermediate_reward_list]
+                                metrics.update({"rollout/intermediate_reward_mean": np.mean(intermediate_reward_list_mean) if intermediate_reward_list_mean else 0.0})
+                                metrics.update({"rollout/intermediate_reward_std": np.std(intermediate_reward_list_mean) if intermediate_reward_list_mean else 0.0})
+
+                                intermediate_reward_list_added_mean = [np.mean(lst) for lst in intermediate_reward_list_added]
+                                metrics.update({"rollout/intermediate_reward_added_mean": np.mean(intermediate_reward_list_added_mean) if intermediate_reward_list_added_mean else 0.0})
+                                metrics.update({"rollout/intermediate_reward_added_std": np.std(intermediate_reward_list_added_mean) if intermediate_reward_list_added_mean else 0.0})
+
+                                result_first_correct_index_list = []
+                                result_first_correct_index_list_ratio = []
+                                for lst in intermediate_reward_list:
+                                    try:
+                                        result_first_correct_index_list.append(lst.index(1))
+                                        result_first_correct_index_list_ratio.append(lst.index(1) * 1.0 / len(lst))
+                                    except ValueError:
+                                        result_first_correct_index_list.append(len(lst)-1)
+                                        result_first_correct_index_list_ratio.append(1.0)
+                                metrics.update({"rollout/result_first_correct_index_mean": np.mean(result_first_correct_index_list) if result_first_correct_index_list else 0.0})
+                                metrics.update({"rollout/result_first_correct_index_std": np.std(result_first_correct_index_list) if result_first_correct_index_list else 0.0})
+                                metrics.update({"rollout/result_first_correct_index_mean_ratio": np.mean(result_first_correct_index_list_ratio) if result_first_correct_index_list_ratio else 0.0})
+                                metrics.update({"rollout/result_first_correct_index_std_ratio": np.std(result_first_correct_index_list_ratio) if result_first_correct_index_list_ratio else 0.0})
 
                     # validate
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and (is_last_step or self.global_steps % self.config.trainer.test_freq == 0):
