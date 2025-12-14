@@ -30,6 +30,8 @@ from json import JSONDecodeError
 from typing import List, Optional, Tuple
 from uuid import uuid4
 
+import copy
+
 import numpy as np
 import sglang.srt.entrypoints.engine
 import torch
@@ -987,7 +989,7 @@ Provide a detailed answer and supporting information for this subtask. Your answ
                 task_description = current_user_prompt  # fallback
         '''
         
-        recovered_messages = [msg.model_copy(deep=True) for msg in _req.messages]
+        ## recovered_messages = [msg.model_copy(deep=True) for msg in _req.messages]
 
         summarize_prompt = generate_agent_summarize_prompt_stage_wise_main_agent(
             task_description=task_description, task_failed=task_failed
@@ -1006,7 +1008,7 @@ Provide a detailed answer and supporting information for this subtask. Your answ
         output = await self._handle_engine_call(_req, do_sample, is_validate, **kwargs)
         content = output["text"]
 
-        _req.rebuild_messages(recovered_messages, self.tokenizer, use_mcp_tool_call, keep_think_text_for_last_round_only, think_block_close_tag) 
+        ## _req.rebuild_messages(recovered_messages, self.tokenizer, use_mcp_tool_call, keep_think_text_for_last_round_only, think_block_close_tag) 
 
         ## _req.add_assistant_message(self.tokenizer, content, use_mcp_tool_call=use_mcp_tool_call, keep_think_text_for_last_round_only=keep_think_text_for_last_round_only, think_block_close_tag=think_block_close_tag)
         return content
@@ -1106,15 +1108,19 @@ Provide a detailed answer and supporting information for this subtask. Your answ
                         
 
                     # _req.add_tool_response_messages(self.tokenizer, [resp[:self.config.multi_turn.tool_response_cut_off_length] for resp, _, _ in tool_call_results], use_mcp_tool_call=use_mcp_tool_call)
-                    if agent_type == "main_agent":
-                        task_failed = current_turns >= self.config.multi_turn.max_turns or finish_reason_type == FinishReasonTypeEnum.LENGTH
-                        summary_this_stage = await self.final_summary_stage(_req, tool_call_contents, task_failed, do_sample, is_validate, self.config.multi_turn.use_mcp_tool_call, keep_think_text_for_last_round_only, think_block_close_tag, **kwargs)
-                        for sub_number in range(len(subagent_tool_call_results)):
-                            _req.summary_stages.append(summary_this_stage)
-                        #if len(subagent_tool_call_results) == 0 and len(tool_call_results) > 0:
-                        #    _req.summary_stages.append(summary_this_stage)
-                    else:
-                        _req.summary_stages.append('x')
+                    if self.config.multi_turn.enable_subagent_tool_rollout_in_summary:
+                        if agent_type == "main_agent":
+                            task_failed = current_turns >= self.config.multi_turn.max_turns or finish_reason_type == FinishReasonTypeEnum.LENGTH
+                            _req_copy = copy.deepcopy(_req)
+                            summary_this_stage = await self.final_summary_stage(_req_copy, tool_call_contents, task_failed, do_sample, is_validate, self.config.multi_turn.use_mcp_tool_call, keep_think_text_for_last_round_only, think_block_close_tag, **kwargs)
+                            del _req_copy
+                            id_turn = len(_req.summary_stages)
+                            for sub_number in range(len(subagent_tool_call_results)):
+                                _req.summary_stages.append(summary_this_stage+' The index of this intermediate summary is {}.'.format(id_turn))
+                            #if len(subagent_tool_call_results) == 0 and len(tool_call_results) > 0:
+                            #    _req.summary_stages.append(summary_this_stage)
+                        else:
+                            _req.summary_stages.append('x')
 
                     _req.add_tool_response_messages(self.tokenizer, tool_call_contents, use_mcp_tool_call=use_mcp_tool_call)
 
