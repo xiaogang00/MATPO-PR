@@ -202,7 +202,9 @@ actor_rollout_ref:
     ulysses_sequence_parallel_size: 1
 
     ## which manner to compute log prob
-    log_compute_type: 'turn'
+    log_compute_type: 'eachtoken'
+    ##log_compute_type: 'turn'
+    ##'turn','eachtoken'
 
     # checkpoint configs
     checkpoint:
