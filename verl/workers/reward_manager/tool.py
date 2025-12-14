@@ -29,8 +29,10 @@ from tqdm import tqdm
 
 from verl import DataProto
 from verl.utils.reward_score import default_compute_score
-from verl.utils.reward_score.llm_judge import SIMPLEQA_EVALUATION_PROMPT, extract_boxed_answer
+from verl.utils.reward_score.llm_judge import SIMPLEQA_EVALUATION_PROMPT, PROGRESS_EVALUATION_PROMPT, extract_boxed_answer
 from verl.workers.reward_manager import register
+
+import requests
 
 
 async def batch_compute_scores_async(client, data_source_list, response_str_list, ground_truth_list, extra_info_list, batch_size=10, max_retry=3):
@@ -59,6 +61,136 @@ async def batch_compute_scores_async(client, data_source_list, response_str_list
             
             prompt = SIMPLEQA_EVALUATION_PROMPT.format(extra_info.get("question", ""), ground_truth, extract_boxed_answer(response_str))
 
+            
+            response = await client.chat.completions.create(
+                model="gpt-4o-mini",
+                ##model="gpt-4o",
+                messages=[{"role": "user", "content": prompt}],
+                max_completion_tokens=2
+            )
+            
+
+            '''
+            url = "https://api.miromind.site/v1/chat/completions"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer "+os.getenv("OPENAI_API_KEY")
+            }
+
+            data = {
+                "model": "gpt-4o-mini",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 4096
+            }
+
+            response = requests.post(url, headers=headers, json=data)
+            ## content = response.json()['choices'][0]['message']['content']
+            '''
+
+            content = response.choices[0].message.content
+            match = re.search(r"(A|B|C)", content)
+
+            if match:
+                grade_map = {"A": 1.0, "B": 0.0, "C": 0.0}
+                return (i, grade_map[match.group(0)])
+            else:
+                return (i, 0.0)
+                
+        except Exception as e:
+            print(f"Error computing score for sample {i} (attempt {retry_count + 1}): {e}")
+            
+            # Check if it's a rate limit error
+            error_str = str(e).lower()
+            is_rate_limit = any(keyword in error_str for keyword in ['rate', 'limit', 'quota', '429', 'too many requests'])
+            is_connection_error = any(keyword in error_str for keyword in ['connection', 'timeout', 'network'])
+            
+            # Retry if we haven't reached max_retry
+            if retry_count < max_retry:
+                print(f"Retrying sample {i} (attempt {retry_count + 2}/{max_retry + 1})")
+                
+                # Use longer wait time for rate limit errors
+                if is_rate_limit:
+                    wait_time = 30 * (2 ** retry_count)  # 30s, 60s, 120s for rate limits
+                else:
+                    wait_time = 10 * (2 ** retry_count)  # 10s, 20s, 40s for other errors
+                
+                await asyncio.sleep(wait_time)
+                
+                return await compute_single_score(i, retry_count + 1)
+            else:
+                print(f"Max retry reached for sample {i}")
+                raise Exception(f"Failed to compute score for sample {i} after {max_retry + 1} attempts")
+    
+    # Process in batches to avoid overwhelming the API
+    results_dict = {}
+    for i in range(0, len(data_source_list), batch_size):
+        batch_indices = list(range(i, min(i + batch_size, len(data_source_list))))
+        
+        # Create tasks for the current batch
+        tasks = [compute_single_score(idx) for idx in batch_indices]
+        
+        # Execute batch concurrently
+        batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Add small delay between batches to prevent rate limiting
+        if i + batch_size < len(data_source_list):
+            await asyncio.sleep(3)  # Increased from 1s to 3s
+        
+        # Handle any exceptions in the batch and store results by index
+        for j, result in enumerate(batch_results):
+            if isinstance(result, Exception):
+                print(f"Exception in batch {i//batch_size}, sample {batch_indices[j]}: {result}")
+                # Re-raise the exception instead of using fallback
+                raise result
+            else:
+                idx, score = result
+                results_dict[idx] = score
+    
+    # Reconstruct results list in the correct order
+    results = [results_dict[i] for i in range(len(data_source_list))]
+    
+    # Validate that results match the input data length
+    if len(results) != len(response_str_list):
+        raise ValueError(f"Results length mismatch: got {len(results)}, expected {len(response_str_list)}")
+    
+    return results
+
+
+
+
+async def batch_compute_scores_async2(client, data_source_list, response_str_list, ground_truth_list, extra_info_list, batch_size=10, max_retry=3):
+    """
+    Compute scores asynchronously using OpenAI API in batches.
+    
+    Args:
+        client: AsyncOpenAI client instance
+        data_source_list: List of data sources
+        response_str_list: List of response strings
+        ground_truth_list: List of ground truth values
+        extra_info_list: List of extra info
+        batch_size: Number of concurrent requests
+        max_retry: Maximum number of retries for failed requests
+    
+    Returns:
+        List of accuracy rewards
+    """
+    async def compute_single_score(i, retry_count=0):
+        """Compute score for a single sample with retry logic"""
+        try:
+            data_source = data_source_list[i]
+            response_str = response_str_list[i]
+            ground_truth = ground_truth_list[i]
+            extra_info = extra_info_list[i]
+
+            if not(len(response_str.split("---&&&---")) == 2):
+                print('cccc')
+                import pdb; pdb.set_trace()
+            response_str1, response_str2 = response_str.split("---&&&---")
+            response_str2_split = response_str2.split("|")[1:-1]
+            length_intermediate_steps = len(response_str2_split)
+
+            prompt = SIMPLEQA_EVALUATION_PROMPT.format(extra_info.get("question", ""), ground_truth, extract_boxed_answer(response_str1))
+
             response = await client.chat.completions.create(
                 model="gpt-4o-mini",
                 ##model="gpt-4o",
@@ -69,11 +201,74 @@ async def batch_compute_scores_async(client, data_source_list, response_str_list
             content = response.choices[0].message.content
             match = re.search(r"(A|B|C)", content)
 
+            def parse_score_list(text):
+                """
+                判断 text 是否是由 | 分隔的分数序列，例如 '|0.3|0.3|0.7|1.0|'
+                若合法，返回浮点数 list；否则返回 None。
+                """
+
+                # 去掉前后空白
+                s = text.strip()
+
+                # 判断是否匹配形如 |0.3|0.7|1.0|
+                # 允许科学计数法和整数，如 1, 0, 1.0, 3e-1
+                pattern = r'^(?:\|(?:[0-9]*\.?[0-9]+(?:e[+-]?[0-9]+)?)\|)+$'
+                if not re.match(pattern, s, re.IGNORECASE):
+                    return None
+
+                # split and convert to floats
+                parts = s.split('|')
+                scores = []
+
+                for p in parts:
+                    if p == '':
+                        continue
+                    try:
+                        scores.append(float(p))
+                    except ValueError:
+                        return None
+
+                return scores
+
+            if length_intermediate_steps > 0:
+                response_str2_format = ''
+                output_format = ''
+                for i in range(length_intermediate_steps):
+                    response_str2_format += "Intermediate step "+str(i+1)+": " + response_str2_split[i] + "\n"
+                    output_format += 'Score Step '+str(i+1)+': ' + 'the score for the step ' + str(i+1) + ";"
+                
+                ## response_str2_format = response_str2_format + "Return the scores of each step. The format of the output should be:\n" + output_format
+
+                prompt2 = PROGRESS_EVALUATION_PROMPT.format(extra_info.get("question", ""), ground_truth, response_str2_format, output_format)
+
+                response2 = await client.chat.completions.create(
+                    ##model="gpt-4o-mini",
+                    model="gpt-4o",
+                    messages=[{"role": "user", "content": prompt2}],
+                    max_completion_tokens=2
+                )
+                content2 = response2.choices[0].message.content
+                print('dddd')
+                import pdb; pdb.set_trace()
+                scores2 = parse_score_list(content2)
+                if scores2 is not None and len(scores2) == length_intermediate_steps:
+                    score_list = scores2
+                else:
+                    score_list = [0.0] * length_intermediate_steps
+            else:
+                score_list = []
+
             if match:
                 grade_map = {"A": 1.0, "B": 0.0, "C": 0.0}
-                return (i, grade_map[match.group(0)])
+                final_score = grade_map[match.group(0)]
+                score_list = [final_score] + score_list
+                result = "&".join(str(x) for x in score_list)
+                return (i, result)
             else:
-                return (i, 0.0)
+                final_score = 0.0
+                score_list = [final_score] + score_list
+                result = "&".join(str(x) for x in score_list)
+                return (i, result)
                 
         except Exception as e:
             print(f"Error computing score for sample {i} (attempt {retry_count + 1}): {e}")
@@ -145,9 +340,14 @@ def create_async_openai_client(api_key=None):
     Returns:
         AsyncOpenAI client instance
     """
+
+    '''
     return AsyncOpenAI(
         api_key=api_key or os.getenv("OPENAI_API_KEY")
     )
+    '''
+    return AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"), base_url="https://api.miromind.site/v1")
+
 
 
 async def close_openai_client(client):
@@ -204,12 +404,51 @@ def run_async_computation(client, data_source_list, response_str_list, ground_tr
 
 
 
+def run_async_computation2(client, data_source_list, response_str_list, ground_truth_list, extra_info_list, batch_size=10, max_retry=3):
+    """
+    Run async computation in a new event loop.
+    
+    Args:
+        client: AsyncOpenAI client instance
+        data_source_list: List of data sources
+        response_str_list: List of response strings
+        ground_truth_list: List of ground truth values
+        extra_info_list: List of extra info
+        batch_size: Number of concurrent requests
+        max_retry: Maximum number of retries for failed requests
+    
+    Returns:
+        List of accuracy rewards
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        # Run the batch computation
+        results = loop.run_until_complete(
+            batch_compute_scores_async2(
+                client,
+                data_source_list,
+                response_str_list,
+                ground_truth_list,
+                extra_info_list,
+                batch_size,
+                max_retry
+            )
+        )
+        
+        # Close the client connections properly
+        loop.run_until_complete(close_openai_client(client))
+        
+        return results
+    finally:
+        loop.close()
+
 
 @register("tool")
 class ToolRewardManager:
     """The reward manager for tool data."""
 
-    def __init__(self, tokenizer, num_examine, compute_score=None, reward_fn_key="data_source", accuracy_reward_weight=1.0, tool_format_reward_weight=0.1, gate_tool_format_reward=False, async_process=False, batch_size=10, max_retry=3) -> None:
+    def __init__(self, tokenizer, num_examine, compute_score=None, reward_fn_key="data_source", accuracy_reward_weight=1.0, tool_format_reward_weight=0.1, gate_tool_format_reward=False, async_process=False, batch_size=10, max_retry=3, theta=None) -> None:
         """
         Initialize the ToolRewardManager instance.
 
@@ -235,6 +474,7 @@ class ToolRewardManager:
         self.async_process = async_process  # whether use async process to compute reward
         self.batch_size = batch_size  # batch size for async processing
         self.max_retry = max_retry  # max retry for async processing
+        self.theta = theta  # theta for the tool reward
         
         # Store API key for creating fresh clients
         if self.async_process:
