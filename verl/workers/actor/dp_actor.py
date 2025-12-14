@@ -479,11 +479,17 @@ class DataParallelPPOActor(BasePPOActor):
                                     end_point = end_location[j]
                                     log_sum_old = 0
                                     log_sum_new = 0
+                                    count_this = 0
                                     for k in range(start_point, end_point+1, 1):
                                         log_sum_old += old_log_prob[i, k]
                                         log_sum_new += log_prob[i, k]
-                                    old_log_prob[i, start_point:end_point+1] = log_sum_old
-                                    log_prob[i, start_point:end_point+1] = log_sum_new
+                                        count_this += 1
+                                    #old_log_prob[i, start_point:end_point+1] = log_sum_old
+                                    #log_prob[i, start_point:end_point+1] = log_sum_new
+                                    for k in range(start_point, end_point+1, 1):
+                                        old_log_prob[i, k] = old_log_prob[i, k] - old_log_prob[i, k].clone().detach()+log_sum_old.clone().detach()
+                                        log_prob[i, k] = log_prob[i, k] - log_prob[i, k].clone().detach()+log_sum_new.clone().detach()
+                            
                             else:
                                 response_length = data["responses"][i].size(-1)
                                 loss_mask_this = data["loss_mask"][i, -response_length:]
@@ -499,8 +505,11 @@ class DataParallelPPOActor(BasePPOActor):
                                         log_sum_new += log_prob[i, j]
                                 for j in range(end_location_this+1):
                                     if loss_mask_this[j] == 1:
-                                        old_log_prob[i, j] = log_sum_old
-                                        log_prob[i, j] = log_sum_new
+                                        old_log_prob[i, j] = old_log_prob[i, j] - old_log_prob[i, j].clone().detach() + log_sum_old.clone().detach()
+                                        log_prob[i, j] = log_prob[i, j] -log_prob[i, j].clone().detach() + log_sum_new.clone().detach()
+                                        #old_log_prob[i, j] = log_sum_old
+                                        #log_prob[i, j] = log_sum_new
+                            
 
                     pg_loss, pg_clipfrac, ppo_kl, pg_clipfrac_lower = compute_policy_loss(
                         old_log_prob=old_log_prob,
