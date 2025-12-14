@@ -47,6 +47,7 @@ actor_rollout_ref:
       disable_final_summary_for_main_agent: False
       max_summary_length: 4096
       delete_think_from_subagent_tools: False
+      enable_subagent_tool_rollout_in_summary: False ##whether to include a summary for subagent
       # tool_config_path: "./config/tool_config/mcp_tool_config.yaml"
 
     include_subagent_tool_rollout_in_loss: True
