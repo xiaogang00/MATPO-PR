@@ -19,12 +19,13 @@ project_name=MATPO14B
 BSZ=256
 N_ROLLOUT=8
 LR=1e-5
-experiment_name=Qwen3-14B-MATPO-turn-bsz-$BSZ-nrol-$N_ROLLOUT-lr-$LR-everytoken3-0.5-new
+experiment_name=Qwen3-14B-MATPO-turn-bsz-$BSZ-nrol-$N_ROLLOUT-lr-$LR-everytoken3-0.5-diff3
 
 python3 -m verl.trainer.main_ppo \
     --config-path=$CONFIG_PATH \
     --config-name=$config_name \
     algorithm.adv_estimator=grpo_turn \
+    algorithm.disable_norm=False \
     reward_model.reward_kwargs.theta=0.5 \
     data.train_batch_size=$BSZ \
     data.max_prompt_length=3072 \

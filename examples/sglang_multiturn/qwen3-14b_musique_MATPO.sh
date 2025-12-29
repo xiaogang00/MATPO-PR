@@ -9,17 +9,17 @@ PROJECT_DIR="$(pwd)"
 CONFIG_PATH=$PROJECT_DIR/examples/sglang_multiturn/config
 TOOL_CONFIG_PATH=$PROJECT_DIR/examples/sglang_multiturn/config/tool_config/mcp_tool_config_full_agent.yaml
 
-MODEL_PATH=YOUR_MODEL_PATH_TO_Qwen3-14B
-TRAIN_DATA_PATH=YOUR_TRAIN_DATA_PATH
-VAL_DATA_PATH=YOUR_VAL_DATA_PATH
+MODEL_PATH=/pfs/public-env/hf/models/Qwen/Qwen3-14B
+TRAIN_DATA_PATH=$PROJECT_DIR/data/MATPO/matpo_train_musique/train-00000-of-00001.parquet
+VAL_DATA_PATH=$PROJECT_DIR/data/MATPO/matpo_val_gaia_repeat_8/train-00000-of-00001.parquet
 
-config_name=simpleqa_multiturn_rm_batch_grpo_agent
-project_name=MATPO
+config_name=simpleqa_multiturn_rm_batch_grpo_agent2
+project_name=MATPO14B
 
 BSZ=256
 N_ROLLOUT=8
 LR=1e-5
-experiment_name=Qwen3-14B-MATPO-bsz-$BSZ-nrol-$N_ROLLOUT-lr-$LR
+experiment_name=Qwen3-14B-MATPO-bsz-$BSZ-nrol-$N_ROLLOUT-lr-$LR-2
 
 python3 -m verl.trainer.main_ppo \
     --config-path=$CONFIG_PATH \
@@ -46,7 +46,7 @@ python3 -m verl.trainer.main_ppo \
     actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=1 \
     actor_rollout_ref.rollout.tensor_model_parallel_size=2 \
     actor_rollout_ref.rollout.name=sglang \
-    actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \
+    actor_rollout_ref.rollout.gpu_memory_utilization=0.7 \
     actor_rollout_ref.rollout.n=$N_ROLLOUT \
     actor_rollout_ref.rollout.temperature=1.0 \
     actor_rollout_ref.rollout.do_sample=True \
