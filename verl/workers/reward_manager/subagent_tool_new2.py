@@ -83,8 +83,8 @@ def nearest_resample(x, target_len, response_str=None):
 
 
 
-@register("subagent_tool_new")
-class NewSubagentToolRewardManager(ToolRewardManager):
+@register("subagent_tool_new2")
+class NewSubagentToolRewardManager2(ToolRewardManager):
     """The reward manager for subagent-tool data."""
 
     def __init__(self, tokenizer, num_examine, compute_score=None, reward_fn_key="data_source", accuracy_reward_weight=1.0, tool_format_reward_weight=0.1, gate_tool_format_reward=False, async_process=False, batch_size=10, max_retry=3, theta=None) -> None:
@@ -315,7 +315,7 @@ class NewSubagentToolRewardManager(ToolRewardManager):
         for i in range(len(data)):
             if is_from_subagent_tool_list[i]:
                 parent_idx_list[i] = np.where(reqs_ids_list == parent_reqs_ids_list[i])[0][0]
-            
+
         reward_tensor = torch.zeros_like(data.batch["responses"], dtype=torch.float32)
         reward_extra_info = defaultdict(list)
 
@@ -365,32 +365,8 @@ class NewSubagentToolRewardManager(ToolRewardManager):
                 summary_stage_this = data_item.non_tensor_batch['summary_stages']['summary_stages'].copy()
                 summary_stages.append(summary_stage_this)
                 print('aaaaaaaa')
-                ## print(end_location, len(summary_stage_this), summary_stage_this)
                 print(end_location, len(summary_stage_this))
-                ##if not(len(end_location) == len(summary_stage_this) + 1): #并不总是成立的， 因为main agent可以同时调用2个subagent，然后返回结果
-                ##    print('aaaaaaaaaaaaaaaaa')
-                ##    import pdb; pdb.set_trace()
-                ## assert len(end_location) == len(summary_stage_this) + 1
-                ## assert end_location[-1] == valid_response_length-1
                 summary_each_end_stage_split_list.append(end_location)
-
-                '''
-                ##### split the main agent's response into multiple parts, each will have a format reward
-                end_location2 = [j+1 for j in range(0, len(loss_mask)-1) if (loss_mask[j] == 0 and loss_mask[j+1] == 1)]
-                if not(len(end_location2) == len(end_location)):
-                    end_location2 = [0] + end_location2
-                assert len(end_location) == len(end_location2)
-                main_agent_split_response_str_list_this = []
-                for j in range(len(end_location)-1):
-                    start_point = end_location2[j]
-                    end_point = end_location[j]
-                    valid_response_ids_this = response_ids[start_point:end_point+1]
-                    response_str_this = self.tokenizer.decode(valid_response_ids_this, skip_special_tokens=True)
-                    tool_number = response_str_this.count("\n</use_mcp_tool>\n") ## if call a subagent, there must be </use_mcp_tool>
-                    ## main_agent_split_response_str_list_this.append(response_str_this)
-                    main_agent_split_response_str_list_this = main_agent_split_response_str_list_this + [response_str_this] * tool_number
-                main_agent_split_response_str_list.append(main_agent_split_response_str_list_this)
-                '''
             else:
                 summary_stages.append([])
                 summary_each_end_stage_split_list.append([])
@@ -403,85 +379,12 @@ class NewSubagentToolRewardManager(ToolRewardManager):
             valid_response_length_list.append(valid_response_length)
 
         
-        ### Compute accuracy_reward only for main-agent-rollouts, set accuracy_reward as None for subagent-tool-rollouts
-        '''
-        ## TODO: compute the reward by LLM as judge
-        prompt_str_list_main_agent = []
-        data_source_list_main_agent = []
-        response_str_list_main_agent = []
-        ground_truth_list_main_agent = []
-        extra_info_list_main_agent = []
-        for i in range(len(prompt_str_list)):
-            if not(is_from_subagent_tool_list[i]):
-                response_this = response_str_list[i]
-                intermediate_steps_this = summary_stages[i]
-                response_str_list_main_agent_this = response_this + "---&&&---" + "|" + "|".join(intermediate_steps_this) + "|"
-
-                prompt_str_list_main_agent.append(prompt_str_list[i])
-                data_source_list_main_agent.append(data_source_list[i])
-                response_str_list_main_agent.append(response_str_list_main_agent_this)
-                ground_truth_list_main_agent.append(ground_truth_list[i])
-                extra_info_list_main_agent.append(extra_info_list[i])
-        
-        if self.async_process:
-            # openai batch api
-            start_time = time.time()
-            print("Start computing accuracy reward with async api, this may take a while...")
-            print(f"Async configuration: batch_size={self.batch_size}, max_retry={self.max_retry}")
-            try:
-                # Create a fresh client for each batch to avoid connection pool issues
-                fresh_client = create_async_openai_client(self.openai_api_key)
-                
-                # Run async computation using the new async functions
-                accuracy_reward_list_main_agent = run_async_computation2(
-                    fresh_client,
-                    data_source_list_main_agent,
-                    response_str_list_main_agent,
-                    ground_truth_list_main_agent,
-                    extra_info_list_main_agent,
-                    self.batch_size,
-                    self.max_retry
-                )
-                
-                end_time = time.time()
-                print(f"Async batch processing completed in {end_time - start_time:.2f} seconds")
-
-            except Exception as e:
-                # Re-raise the exception instead of using fallback
-                print(f"Error in batch api: {e}")
-                raise e
-        
-        for i in range(len(accuracy_reward_list_main_agent)):
-            result_this = accuracy_reward_list_main_agent[i]
-            result = result_this.split("&")
-            if len(result) == 1:
-                accuracy_reward_this = result[0]
-                score_list_this = []
-            else:
-                accuracy_reward_this = result[0]
-                score_list_this = result[1:]
-            import pdb; pdb.set_trace()
-        '''
-
         prompt_str_list = np.array(prompt_str_list)
         data_source_list = np.array(data_source_list)
         response_str_list = np.array(response_str_list)
         ground_truth_list = np.array(ground_truth_list)
         extra_info_list = np.array(extra_info_list)
 
-        '''
-        prompt_str_list_backup = prompt_str_list.copy()
-        data_source_list_backup = data_source_list.copy()
-        response_str_list_backup = response_str_list.copy()
-        ground_truth_list_backup = ground_truth_list.copy()
-        extra_info_list_backup = extra_info_list.copy()
-
-        prompt_str_list = prompt_str_list[~is_from_subagent_tool_list]
-        data_source_list = data_source_list[~is_from_subagent_tool_list]
-        response_str_list = response_str_list[~is_from_subagent_tool_list]
-        ground_truth_list = ground_truth_list[~is_from_subagent_tool_list]
-        extra_info_list = extra_info_list[~is_from_subagent_tool_list]
-        '''
         prompt_str_list_new = prompt_str_list.copy()
         data_source_list_new = data_source_list.copy()
         response_str_list_new = response_str_list.copy()
@@ -491,17 +394,9 @@ class NewSubagentToolRewardManager(ToolRewardManager):
             if not(is_from_subagent_tool_list[i]):
                 summary_stage_this = summary_stages[i].copy()
 
-                print('bbbbbb')
+                print('bbbbbbcccccddd')
                 ## print(len(response_str_list_new[parent_idx_list == i]), len(summary_stage_this), summary_stage_this)
                 print(len(response_str_list_new[parent_idx_list == i]), len(summary_stage_this))
-                '''
-                if len(response_str_list_new[parent_idx_list == i]) > len(summary_stage_this):
-                    while not(len(response_str_list_new[parent_idx_list == i]) == len(summary_stage_this)):
-                        summary_stage_this.append('x')
-                elif len(response_str_list_new[parent_idx_list == i]) < len(summary_stage_this):
-                    distance = len(summary_stage_this) - len(response_str_list_new[parent_idx_list == i])
-                    summary_stage_this = summary_stage_this[:-distance]
-                '''
                 
                 if not(len(response_str_list_new[parent_idx_list == i]) == len(summary_stage_this)):
                     print('bbbbbbbbbbbbbbbbbb')
@@ -510,7 +405,6 @@ class NewSubagentToolRewardManager(ToolRewardManager):
                     summary_stage_this = nearest_resample(summary_stage_this, length_target, response_str_list[i])
                 assert len(response_str_list_new[parent_idx_list == i]) == len(summary_stage_this)
                 
-
                 response_str_list_new[parent_idx_list == i] = np.array(summary_stage_this)
                 prompt_str_list_new[parent_idx_list == i] = prompt_str_list[i]
                 data_source_list_new[parent_idx_list == i] = data_source_list[i]
@@ -575,83 +469,42 @@ class NewSubagentToolRewardManager(ToolRewardManager):
 
         accuracy_reward_list = np.array(accuracy_reward_list)
         assert len(accuracy_reward_list) == len(data_source_list)
+
+        for i in range(len(accuracy_reward_list)):
+            ## accuracy_reward = accuracy_reward_list[i]
+            if is_from_subagent_tool_list[i]:
+                accuracy_reward_original_this = str(accuracy_reward_list[i])
+                accuracy_reward_original_this_added = str(accuracy_reward_list[i])
+                summary_intermediate_str_combine = 'x'
+            else:
+                ## record the the intermediate accuracy reward for main agent
+                subagent_accuracy_reward_original_this = accuracy_reward_list[parent_idx_list == i].tolist()
+                subagent_accuracy_reward_original_this = subagent_accuracy_reward_original_this + [accuracy_reward_list[i]]
+                accuracy_reward_original_this = "&".join(map(str, subagent_accuracy_reward_original_this))
+
+                subagent_accuracy_reward_original_this_added = accuracy_reward_list[parent_idx_list == i].tolist()
+                subagent_accuracy_reward_original_this_added = subagent_accuracy_reward_original_this_added + [accuracy_reward_list[i]]
+                accuracy_reward_original_this_added = "&".join(map(str, subagent_accuracy_reward_original_this_added))
+
+                summary_intermediate_reward_this = summary_stages[i].copy()
+                summary_intermediate_str_combine = "&".join(map(str, summary_intermediate_reward_this))
+
+            reward_extra_info["accuracy_reward_original"].append(accuracy_reward_original_this)
+            reward_extra_info["accuracy_reward_original_added"].append(accuracy_reward_original_this_added)
+            reward_extra_info["summary_intermediate_str_combine"].append(summary_intermediate_str_combine)
+
         del prompt_str_list_new, data_source_list_new, response_str_list_new, ground_truth_list_new, extra_info_list_new
-        '''
+        
         accuracy_reward_list_all = np.array([0.0] * len(data))
-        accuracy_reward_list_all[~is_from_subagent_tool_list] = accuracy_reward_list
+        accuracy_reward_list_all[~is_from_subagent_tool_list] = accuracy_reward_list[~is_from_subagent_tool_list]
         accuracy_reward_list = accuracy_reward_list_all
         del accuracy_reward_list_all
-        
-        prompt_str_list = prompt_str_list_backup
-        data_source_list = data_source_list_backup
-        response_str_list = response_str_list_backup
-        ground_truth_list = ground_truth_list_backup
-        extra_info_list = extra_info_list_backup
-        del prompt_str_list_backup, data_source_list_backup, response_str_list_backup, ground_truth_list_backup, extra_info_list_backup
-        # broadcast the accuracy_reward to each subagent-tool-rollout according to the main-agent <--> subagent-tool relationship.
         
         for i in range(len(data)):
             if is_from_subagent_tool_list[i]:
                 accuracy_reward_list[i] = accuracy_reward_list[parent_idx_list[i]]
-        '''
-
-        ##combined_reward_list_copy = combined_reward_list.copy()
-        accuracy_reward_list_backup = accuracy_reward_list.copy()
-        theta = self.theta
-        for i in range(len(accuracy_reward_list)):
-            if not(is_from_subagent_tool_list[i]):
-                sub_accuracy_reward = accuracy_reward_list[parent_idx_list == i].tolist()
-                sub_accuracy_reward.append(accuracy_reward_list[i])
-
-                '''
-                ## diff setting
-                sub_accuracy_reward = [0] + sub_accuracy_reward
-                sub_accuracy_reward = np.array(sub_accuracy_reward)
-                sub_accuracy_reward = np.diff(sub_accuracy_reward).tolist()
-                sub_accuracy_reward[-1] = accuracy_reward_list[i]
-                ## sub_accuracy_reward = sub_accuracy_reward + accuracy_reward_list[i]
-                '''
-
-                reward_new = []
-                for j in range(len(sub_accuracy_reward)-1):
-                    accuracy_reward_this = 0
-                    for k in range(len(sub_accuracy_reward)-1, j-1, -1):
-                        accuracy_reward_this = accuracy_reward_this*theta + sub_accuracy_reward[k]
-                    ## combined_reward_this = combined_reward_this + sub_combined_reward[j]
-                    reward_new.append(accuracy_reward_this)
-                accuracy_reward_list[parent_idx_list == i] = np.array(reward_new)
-                
-                ## accuracy_reward_list[i] = sub_accuracy_reward[-1] ## diff setting
-                ## accuracy_reward_list[parent_idx_list == i] += accuracy_reward_list[i] ## diff setting2
-                ## accuracy_reward_list[i] += accuracy_reward_list[i] ## diff setting2
-        ## accuracy_reward_list = np.clip(accuracy_reward_list, a_min=0, a_max=2)
         
 
-        '''
-        accuracy_reward_list_backup = accuracy_reward_list.copy()
-        theta = self.theta
-        for i in range(len(accuracy_reward_list)):
-            if not(is_from_subagent_tool_list[i]):
-                sub_accuracy_reward = accuracy_reward_list[parent_idx_list == i].tolist()
-                sub_accuracy_reward.append(accuracy_reward_list[i])
-                if 1 in sub_accuracy_reward:
-                    first_one = sub_accuracy_reward.index(1)
-                    sub_accuracy_reward_this = sub_accuracy_reward[:first_one+1]
-                    
-                    reward_new = []
-                    for j in range(len(sub_accuracy_reward_this)-1):
-                        accuracy_reward_this = 0
-                        for k in range(len(sub_accuracy_reward_this)-1, j-1, -1):
-                            accuracy_reward_this = accuracy_reward_this*theta + sub_accuracy_reward_this[k]
-                        reward_new.append(accuracy_reward_this)
-                    reward_new = reward_new + sub_accuracy_reward[first_one:-1]
-                else:
-                    reward_new = sub_accuracy_reward[:-1]
-                
-                accuracy_reward_list[parent_idx_list == i] = np.array(reward_new)
-        '''
-
-        sub_agent_tool_format_reward_list = np.zeros_like(accuracy_reward_list)
         ### compute tool_format_reward for each sample, both main-agent-rollouts and subagent-tool-rollouts, but do NOT compute the combined_reward for now.
         for i in range(len(data)):
             prompt_str = prompt_str_list[i]
@@ -659,7 +512,6 @@ class NewSubagentToolRewardManager(ToolRewardManager):
             ground_truth = ground_truth_list[i]
             extra_info = extra_info_list[i]
             accuracy_reward = accuracy_reward_list[i]
-            accuracy_reward_backup = accuracy_reward_list_backup[i]
             assert accuracy_reward is not None, f"accuracy_reward_list[{i}] == None, which means the accuracy_reward for main-agent-rollout is wrongly or broadcasted yet. is_from_subagent_tool_list[{i}] = {is_from_subagent_tool_list[i]}"
 
             # tool reward
@@ -667,36 +519,13 @@ class NewSubagentToolRewardManager(ToolRewardManager):
 
             if self.gate_tool_format_reward:
                 # if gate_tool_format_reward is True, the tool format reward will not be given if the final answer is not correct, even the tool format is correct.
-                if accuracy_reward_backup != 1.0:
+                if accuracy_reward != 1.0:
                     mcp_format_reward = 0.0
 
             mcp_format_reward = mcp_format_reward * self.tool_format_reward_weight
-            
+
             tool_format_reward_list.append(mcp_format_reward)
             reward_extra_info["tool_format_reward"].append(mcp_format_reward)
-            
-            '''
-            if is_from_subagent_tool_list[i]:
-                if  accuracy_reward_backup != 1.0:
-                    # accuracy_reward_list[i] = accuracy_reward_backup
-                    parent_idx = parent_idx_list[i]
-                    accuracy_reward_list[i] = accuracy_reward_list[parent_idx]
-            '''
-            
-            '''
-            if not(is_from_subagent_tool_list[i]):
-                sub_agent_tool_format_reward_list_this = []
-                response_split_list_this = main_agent_split_response_str_list[i]
-                for j in range(len(response_split_list_this)):
-                    response_split_str_this = response_split_list_this[j]
-                    mcp_format_reward_this = self.check_mcp_format(prompt_str, response_split_str_this)
-                    if self.gate_tool_format_reward:
-                        if accuracy_reward != 1.0:
-                            mcp_format_reward_this = 0.0
-                    mcp_format_reward_this = mcp_format_reward_this * self.tool_format_reward_weight
-                    sub_agent_tool_format_reward_list_this.append(mcp_format_reward_this)
-                sub_agent_tool_format_reward_list[parent_idx_list == i] = np.array(sub_agent_tool_format_reward_list_this)
-            '''
 
         tool_format_reward_list = np.array(tool_format_reward_list)  
 
@@ -709,147 +538,35 @@ class NewSubagentToolRewardManager(ToolRewardManager):
             accuracy_reward = accuracy_reward * self.accuracy_reward_weight
 
             reward_extra_info["accuracy_reward"].append(accuracy_reward)
-            
+
             if is_from_subagent_tool_list[i]:
-                
-                ##combined_reward = 0.0
-                tool_format_reward = tool_format_reward_list[i]
-                main_format_reward = tool_format_reward_list[parent_idx_list[i]]
-                ##main_format_reward = sub_agent_tool_format_reward_list[i]
-                combined_reward = accuracy_reward + 0.5 * (tool_format_reward + main_format_reward)
-                ##combined_reward = accuracy_reward + tool_format_reward
-                
-                
-                '''
-                parent_idx = parent_idx_list[i]
-                mcp_format_reward_main_agent = tool_format_reward_list[parent_idx]
-                mcp_format_reward_subagent_tool_list = tool_format_reward_list[parent_idx_list == parent_idx]
-                mcp_format_reward_subagent_tool = np.mean(mcp_format_reward_subagent_tool_list) if len(mcp_format_reward_subagent_tool_list) > 0 else 0.0
-                tool_format_reward = 0.5 * (mcp_format_reward_main_agent + mcp_format_reward_subagent_tool)
-                combined_reward = accuracy_reward + tool_format_reward
-                '''
-                
-                ## record the the intermediate accuracy reward for subagent
-                accuracy_reward_original_this = str(accuracy_reward_list_backup[i])
-                accuracy_reward_original_this_added = str(accuracy_reward_list[i])
-                summary_intermediate_str_combine = 'x'
+                combined_reward = 0.0
             else:
                 mcp_format_reward_main_agent = tool_format_reward_list[i]
                 mcp_format_reward_subagent_tool_list = tool_format_reward_list[parent_idx_list == i]
                 mcp_format_reward_subagent_tool = np.mean(mcp_format_reward_subagent_tool_list) if len(mcp_format_reward_subagent_tool_list) > 0 else 0.0
 
                 tool_format_reward = 0.5 * (mcp_format_reward_main_agent + mcp_format_reward_subagent_tool)
-                ##tool_format_reward = mcp_format_reward_main_agent
 
                 combined_reward = accuracy_reward + tool_format_reward
 
-                ## record the the intermediate accuracy reward for main agent
-                subagent_accuracy_reward_original_this = accuracy_reward_list_backup[parent_idx_list == i].tolist()
-                subagent_accuracy_reward_original_this = subagent_accuracy_reward_original_this + [accuracy_reward_list_backup[i]]
-                accuracy_reward_original_this = "&".join(map(str, subagent_accuracy_reward_original_this))
-
-                subagent_accuracy_reward_original_this_added = accuracy_reward_list[parent_idx_list == i].tolist()
-                subagent_accuracy_reward_original_this_added = subagent_accuracy_reward_original_this_added + [accuracy_reward_list[i]]
-                accuracy_reward_original_this_added = "&".join(map(str, subagent_accuracy_reward_original_this_added))
-
-                summary_intermediate_reward_this = summary_stages[i].copy()
-                summary_intermediate_str_combine = "&".join(map(str, summary_intermediate_reward_this))
-
-
-            reward_extra_info["accuracy_reward_original"].append(accuracy_reward_original_this)
-            reward_extra_info["accuracy_reward_original_added"].append(accuracy_reward_original_this_added)
-            reward_extra_info["summary_intermediate_str_combine"].append(summary_intermediate_str_combine)
             combined_reward_list.append(combined_reward)
 
         combined_reward_list = np.array(combined_reward_list)
 
-        
         # broadcast the accuracy_reward and the combined_reward to each subagent-tool-rollout according to the main-agent <--> subagent-tool relationship. Do NOT modify the tool_format_reward for each subagent-tool-rollout.
-        '''
-        theta = 0.5
-        for i in range(len(combined_reward_list)):
-            if not(is_from_subagent_tool_list[i]):
-                sub_combined_reward = combined_reward_list[parent_idx_list == i].tolist()
-                sub_combined_reward.append(combined_reward_list[i])
-                reward_new = []
-                for j in range(len(sub_combined_reward)-1):
-                    combined_reward_this = 0
-                    for k in range(len(sub_combined_reward)-1, j-1, -1):
-                        combined_reward_this = combined_reward_this*theta + sub_combined_reward[k]
-                    ## combined_reward_this = combined_reward_this + sub_combined_reward[j]
-                    reward_new.append(combined_reward_this)
-                combined_reward_list[parent_idx_list == i] = np.array(reward_new)
-        '''
 
         already_print_data_sources = {}
 
         for i in range(len(data)):
-            
-            '''
+
             if is_from_subagent_tool_list[i]:
                 combined_reward = combined_reward_list[parent_idx_list[i]]
             else:
                 combined_reward = combined_reward_list[i]
-            '''
-
-            combined_reward = combined_reward_list[i]
 
             reward_extra_info["combined_reward"].append(combined_reward)
             reward_tensor[i, valid_response_length_list[i] - 1] = combined_reward
-
-            if not(is_from_subagent_tool_list[i]):
-                end_location = summary_each_end_stage_split_list[i]
-                if len(end_location) > 1:
-                    sub_combined_reward = combined_reward_list[parent_idx_list == i]
-                    if len(end_location) -1 == len(sub_combined_reward):
-                        for j in range(len(end_location)-1):
-                            end_location_this = end_location[j]
-                            combined_reward_this = sub_combined_reward[j]
-                            reward_tensor[i, end_location_this] = combined_reward_this
-                            ## print(end_location)
-                    else:
-                        summary_stage_this = summary_stages[i].copy()
-                        # 删除重复的字符串元素，保持顺序，同时返回保留的索引
-                        seen = {}
-                        summary_stage_this_unique = []
-                        sub_combined_reward_unique = []
-                        kept_indices = []
-                        for idx, item in enumerate(summary_stage_this):
-                            if item not in seen:
-                                seen[item] = idx
-                                summary_stage_this_unique.append(item)
-                                sub_combined_reward_unique.append(sub_combined_reward[idx])
-                                kept_indices.append(idx)
-                        ## summary_stage_this = summary_stage_this_unique
-                        
-                        print(end_location, len(sub_combined_reward_unique), len(end_location))
-                        if not(len(end_location) -1 == len(sub_combined_reward_unique)):
-                            print('ddddddddddddddddddddd')
-                            ## import pdb; pdb.set_trace()
-                            ## add a mechanism to handle the case where the length of sub_combined_reward_unique is not equal to the length of end_location - 1
-                            ## but the reason is complex, so this is a temporary solution
-                            '''
-                            if len(sub_combined_reward_unique) > len(end_location)-1:
-                                diff = len(sub_combined_reward_unique) - (len(end_location)-1)
-                                ## sub_combined_reward_unique = sub_combined_reward_unique[:-diff]
-                                sub_combined_reward_unique = sub_combined_reward_unique[diff:]
-                            elif len(sub_combined_reward_unique) < len(end_location)-1:
-                                diff = (len(end_location)-1) - len(sub_combined_reward_unique)
-                                ## sub_combined_reward_unique = sub_combined_reward_unique + [combined_reward] * diff
-                                ## length_now = len(sub_combined_reward_unique)
-                                length_target = len(end_location)-1
-                                ## sub_combined_reward_unique = [sub_combined_reward_unique[round(i * (length_now - 1) / (length_target - 1))] for i in range(length_target)]
-                                sub_combined_reward_unique = nearest_resample(sub_combined_reward_unique, length_target)
-                            '''
-                            length_target = len(end_location)-1
-                            sub_combined_reward_unique = nearest_resample(sub_combined_reward_unique, length_target, combined_reward)
-
-                        assert len(end_location) -1 == len(sub_combined_reward_unique)
-                        for j in range(len(end_location)-1):
-                            end_location_this = end_location[j]
-                            combined_reward_this = sub_combined_reward_unique[j]
-                            reward_tensor[i, end_location_this] = combined_reward_this
-                            ## print(end_location)
 
             prompt_str = prompt_str_list[i]
             response_str = response_str_list[i]
@@ -883,4 +600,3 @@ class NewSubagentToolRewardManager(ToolRewardManager):
             }
         else:
             return reward_tensor
-    
