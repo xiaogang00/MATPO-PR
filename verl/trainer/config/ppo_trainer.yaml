@@ -722,6 +722,8 @@ algorithm:
   # Advantage estimator type: "gae", "grpo", "reinforce_plus_plus", etc.
   adv_estimator: gae
 
+  disable_norm: False
+
   # Whether to normalize advantages by std (specific to GRPO)
   norm_adv_by_std_in_grpo: True
 
