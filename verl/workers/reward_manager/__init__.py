@@ -20,6 +20,7 @@ from .prime import PrimeRewardManager
 from .tool import ToolRewardManager
 from .subagent_tool import SubagentToolRewardManager
 from .subagent_tool_new import NewSubagentToolRewardManager
+from .subagent_tool_new2 import NewSubagentToolRewardManager2
 
 # Note(haibin.lin): no need to include all reward managers here in case of complicated dependencies
-__all__ = ["BatchRewardManager", "DAPORewardManager", "NaiveRewardManager", "PrimeRewardManager", "ToolRewardManager", "SubagentToolRewardManager", "register", "get_reward_manager_cls", "NewSubagentToolRewardManager"]
+__all__ = ["BatchRewardManager", "DAPORewardManager", "NaiveRewardManager", "PrimeRewardManager", "ToolRewardManager", "SubagentToolRewardManager", "register", "get_reward_manager_cls", "NewSubagentToolRewardManager", "NewSubagentToolRewardManager2"]
