@@ -219,7 +219,7 @@ def compute_response_mask(data: DataProto):
     return attention_mask[:, -response_length:]
 
 
-def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, multi_turn=False, norm_adv_by_std_in_grpo=True, config=None, data_subagent=None):
+def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_repeat=1, multi_turn=False, norm_adv_by_std_in_grpo=True, config=None, data_subagent=None, disable_norm=False):
     """Compute advantage estimates for policy optimization.
 
     This function computes advantage estimates using various estimators like GAE, GRPO, REINFORCE++, etc.
@@ -299,6 +299,7 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
             response_mask_subagent=grpo_subagent_calculation_mask,
             index=data.non_tensor_batch["uid"],
             norm_adv_by_std_in_grpo=norm_adv_by_std_in_grpo,
+            disable_norm=disable_norm,
         )
         data.batch["advantages"] = advantages
         data.batch["returns"] = returns
@@ -753,7 +754,8 @@ class RayPPOTrainer:
             if enable_subagent_tool_rollout:
                 from verl.workers.reward_manager.subagent_tool import SubagentToolRewardManager
                 from verl.workers.reward_manager.subagent_tool_new import NewSubagentToolRewardManager
-                assert isinstance(self.val_reward_fn, SubagentToolRewardManager) or isinstance(self.val_reward_fn, NewSubagentToolRewardManager), "The val_reward_fn must be a subagent_tool reward manager when subagent-tool rollouts are included in the loss computation."
+                from verl.workers.reward_manager.subagent_tool_new2 import NewSubagentToolRewardManager2
+                assert isinstance(self.val_reward_fn, SubagentToolRewardManager) or isinstance(self.val_reward_fn, NewSubagentToolRewardManager) or isinstance(self.val_reward_fn, NewSubagentToolRewardManager2), "The val_reward_fn must be a subagent_tool reward manager when subagent-tool rollouts are included in the loss computation."
 
             # evaluate using reward_function
             result = self.val_reward_fn(test_batch, return_dict=True)
@@ -935,6 +937,39 @@ class RayPPOTrainer:
         with open(local_latest_checkpointed_iteration, "w") as f:
             f.write(str(self.global_steps))
 
+    def _save_checkpoint_best(self):
+        # path: given_path + `/global_step_{global_steps}` + `/actor`
+        local_global_step_folder = os.path.join(self.config.trainer.default_local_dir, f"global_step_best")
+
+        print(f"local_global_step_folder: {local_global_step_folder}")
+        actor_local_path = os.path.join(local_global_step_folder, "actor")
+
+        actor_remote_path = None if self.config.trainer.default_hdfs_dir is None else os.path.join(self.config.trainer.default_hdfs_dir, f"global_step_best", "actor")
+
+        remove_previous_ckpt_in_save = self.config.trainer.get("remove_previous_ckpt_in_save", False)
+        if remove_previous_ckpt_in_save:
+            print("Warning: remove_previous_ckpt_in_save is deprecated," + " set max_actor_ckpt_to_keep=1 and max_critic_ckpt_to_keep=1 instead")
+        max_actor_ckpt_to_keep = self.config.trainer.get("max_actor_ckpt_to_keep", None) if not remove_previous_ckpt_in_save else 1
+        max_critic_ckpt_to_keep = self.config.trainer.get("max_critic_ckpt_to_keep", None) if not remove_previous_ckpt_in_save else 1
+
+        self.actor_rollout_wg.save_checkpoint(actor_local_path, actor_remote_path, self.global_steps, max_ckpt_to_keep=max_actor_ckpt_to_keep)
+
+        if self.use_critic:
+            critic_local_path = os.path.join(local_global_step_folder, "critic")
+            critic_remote_path = None if self.config.trainer.default_hdfs_dir is None else os.path.join(self.config.trainer.default_hdfs_dir, f"global_step_best", "critic")
+            self.critic_wg.save_checkpoint(critic_local_path, critic_remote_path, self.global_steps, max_ckpt_to_keep=max_critic_ckpt_to_keep)
+
+        # save dataloader
+        BaseCheckpointManager.local_mkdir(local_global_step_folder)
+        dataloader_local_path = os.path.join(local_global_step_folder, "data.pt")
+        dataloader_state_dict = self.train_dataloader.state_dict()
+        torch.save(dataloader_state_dict, dataloader_local_path)
+
+        # latest checkpointed iteration tracker (for atomic usage)
+        local_latest_checkpointed_iteration = os.path.join(self.config.trainer.default_local_dir, "best_checkpointed_iteration.txt")
+        with open(local_latest_checkpointed_iteration, "w") as f:
+            f.write(str(self.global_steps))
+    
     def _load_checkpoint(self):
         if self.config.trainer.resume_mode == "disable":
             return 0
@@ -1051,6 +1086,7 @@ class RayPPOTrainer:
         # we start from step 1
         self.global_steps += 1
         last_val_metrics = None
+        val_aux_gaia_text_103_test_accuracy_reward_best = 0.0
         for epoch in range(self.config.trainer.total_epochs):
             dict_round_score = {"score_sum": 0.0, "score_count": 0}
             for batch_dict in self.train_dataloader:
@@ -1150,7 +1186,8 @@ class RayPPOTrainer:
                             if include_subagent_tool_rollout_in_loss:
                                 from verl.workers.reward_manager import SubagentToolRewardManager
                                 from verl.workers.reward_manager import NewSubagentToolRewardManager
-                                assert isinstance(self.reward_fn, SubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager), "The reward_fn must be a subagent_tool reward manager when subagent-tool rollouts are included in the loss computation."
+                                from verl.workers.reward_manager import NewSubagentToolRewardManager2
+                                assert isinstance(self.reward_fn, SubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager2), "The reward_fn must be a subagent_tool reward manager when subagent-tool rollouts are included in the loss computation."
                             reward_tensor, reward_extra_infos_dict = compute_reward(batch, self.reward_fn)
                             # assign the reward_tensor and reward_extra_infos_dict to the main-agent rollouts
                             batch.batch["token_level_scores"] = reward_tensor
@@ -1261,6 +1298,7 @@ class RayPPOTrainer:
                                 multi_turn=self.config.actor_rollout_ref.rollout.multi_turn.enable,
                                 config=self.config.algorithm,
                                 data_subagent=batch_from_subagent_tool,
+                                disable_norm=self.config.algorithm.disable_norm,
                             )
                         else:
                             batch = compute_advantage(
@@ -1379,7 +1417,8 @@ class RayPPOTrainer:
                                 dict_round_score["score_count/subagent_tool"] += len(scores_from_subagent_tool)
                                 dict_round_score["score_round/subagent_tool"] = dict_round_score["score_sum/subagent_tool"] / dict_round_score["score_count/subagent_tool"] if dict_round_score["score_count/subagent_tool"] > 0 else 0.0
                             
-                            if self.config.algorithm.adv_estimator == AdvantageEstimator.GRPO_TURN:
+                            ##if self.config.algorithm.adv_estimator == AdvantageEstimator.GRPO_TURN or isinstance(self.reward_fn, NewSubagentToolRewardManager2):
+                            if isinstance(self.reward_fn, NewSubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager2):
                                 ### record the mean of intermediate mean of reward, and also the first index to produce the correct prediction
                                 intermediate_reward_list = reward_extra_infos_dict["accuracy_reward_original"]
                                 intermediate_reward_list = np.array(intermediate_reward_list)
@@ -1412,13 +1451,17 @@ class RayPPOTrainer:
                                 metrics.update({"rollout/result_first_correct_index_std": np.std(result_first_correct_index_list) if result_first_correct_index_list else 0.0})
                                 metrics.update({"rollout/result_first_correct_index_mean_ratio": np.mean(result_first_correct_index_list_ratio) if result_first_correct_index_list_ratio else 0.0})
                                 metrics.update({"rollout/result_first_correct_index_std_ratio": np.std(result_first_correct_index_list_ratio) if result_first_correct_index_list_ratio else 0.0})
-
+                    
                     # validate
                     if self.val_reward_fn is not None and self.config.trainer.test_freq > 0 and (is_last_step or self.global_steps % self.config.trainer.test_freq == 0):
                         with _timer("testing", timing_raw):
                             val_metrics: dict = self._validate()
                             if is_last_step:
                                 last_val_metrics = val_metrics
+                        val_aux_gaia_text_103_test_accuracy_reward = val_metrics["val-aux/gaia_text_103_test/accuracy_reward/mean@8"]
+                        if val_aux_gaia_text_103_test_accuracy_reward > val_aux_gaia_text_103_test_accuracy_reward_best:
+                            val_aux_gaia_text_103_test_accuracy_reward_best = val_aux_gaia_text_103_test_accuracy_reward
+                            self._save_checkpoint_best()
                         metrics.update(val_metrics)
 
                     if self.config.trainer.save_freq > 0 and (is_last_step or self.global_steps % self.config.trainer.save_freq == 0):
