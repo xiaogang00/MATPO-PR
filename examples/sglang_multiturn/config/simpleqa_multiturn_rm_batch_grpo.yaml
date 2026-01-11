@@ -19,6 +19,16 @@ reward_model:
     batch_size: 300
     max_retry: 3
 
+reward_model_val:
+  reward_manager: tool
+  reward_kwargs:
+    accuracy_reward_weight: 0.9
+    tool_format_reward_weight: 0.1
+    gate_tool_format_reward: False # If set to True, the tool format reward will not be given unless the final answer is correct, even if the tool format is correct. If set to False, the tool format reward will be given as long as the tool format is correct, regardless of whether the final answer is correct.
+    async_process: True
+    batch_size: 300
+    max_retry: 3
+
 data:
   max_prompt_length: 1024
   max_response_length: 1024
@@ -37,5 +47,7 @@ actor_rollout_ref:
       disable_final_summary_for_main_agent: False
       max_summary_length: 4096
       delete_think_from_subagent_tools: False
+      enable_subagent_tool_rollout_in_summary: False
       # tool_config_path: "./config/tool_config/mcp_tool_config.yaml"
+
 
