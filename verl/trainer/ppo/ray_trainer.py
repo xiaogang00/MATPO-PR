@@ -709,6 +709,11 @@ class RayPPOTrainer:
             reqs_from_subagents_serialized = test_output_gen_batch.non_tensor_batch["reqs_from_subagents_serialized"]
             enable_subagent_tool_rollout = any(reqs_from_subagents_serialized)
 
+            ##enable_subagent_tool_rollout = False
+            target = b'\x80\x04]\x94.'
+            all_empty_pickle = np.all(reqs_from_subagents_serialized == target).item()
+            enable_subagent_tool_rollout = False if all_empty_pickle else enable_subagent_tool_rollout
+
             if not enable_subagent_tool_rollout:
                 test_batch = test_batch.union(test_output_gen_batch)
             else:
@@ -1418,7 +1423,7 @@ class RayPPOTrainer:
                                 dict_round_score["score_round/subagent_tool"] = dict_round_score["score_sum/subagent_tool"] / dict_round_score["score_count/subagent_tool"] if dict_round_score["score_count/subagent_tool"] > 0 else 0.0
                             
                             ##if self.config.algorithm.adv_estimator == AdvantageEstimator.GRPO_TURN or isinstance(self.reward_fn, NewSubagentToolRewardManager2):
-                            if isinstance(self.reward_fn, NewSubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager2):
+                            if include_subagent_tool_rollout_in_loss and (isinstance(self.reward_fn, NewSubagentToolRewardManager) or isinstance(self.reward_fn, NewSubagentToolRewardManager2)):
                                 ### record the mean of intermediate mean of reward, and also the first index to produce the correct prediction
                                 intermediate_reward_list = reward_extra_infos_dict["accuracy_reward_original"]
                                 intermediate_reward_list = np.array(intermediate_reward_list)
