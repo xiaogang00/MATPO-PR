@@ -346,8 +346,8 @@ def create_async_openai_client(api_key=None):
         api_key=api_key or os.getenv("OPENAI_API_KEY")
     )
     '''
-    return AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"), base_url="https://api.miromind.site/v1")
-
+    ## return AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"), base_url="https://api.miromind.site/v1")
+    return AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"), base_url="https://openrouter.ai/api/v1")
 
 
 async def close_openai_client(client):
