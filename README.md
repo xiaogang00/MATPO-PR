@@ -106,10 +106,10 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Rew
    - Maintains isolated context to prevent token overflow
 
 3. **Credit Assignment**:
-   - Final answer accuracy determines the corresponding reward
-   - The process reward is derived from the accuracy of intermediate answers generated at various execution steps
-   - Reward is accumulated into returns to conduct the GRPO
-   - Advantage is obtained by normalizing across all planner-worker rollout groups
+   - Final answer accuracy determines the corresponding "final answer reward"
+   - The process rewards are derived from the accuracy of intermediate answers generated at various execution steps
+   - Process rewards are accumulated into process returns to conduct the GRPO
+   - Advantages are obtained by normalizing across all planner-worker rollout groups, in terms of process returns and "final answer reward"
    - Gradient flows to both planner actions and worker actions proportionally
 
 <p align="center">
