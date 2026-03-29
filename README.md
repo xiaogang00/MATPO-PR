@@ -33,15 +33,25 @@ MATPO-PR is an upgraded implementation of MATPO.
   </table>
 </div>
 
-<p align="center">
-  <img src="assets/reward_heatmap_baseline_val2.png" width="300px" alt="Visualization of process rewards on GAIA for MATPO">
-    <img src="assets/reward_heatmap_ours_val2.png" width="300px" alt="Visualization of process rewards on GAIA for MATPO-PR">
-</p>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/reward_heatmap_baseline_val2.png" width="330px" alt="Visualization of process rewards on GAIA for MATPO"><br>
+        <em>Visualization of process rewards on GAIA for MATPO</em>
+      </td>
+      <td align="center">
+        <img src="assets/reward_heatmap_ours_val2.png" width="330px" alt="Visualization of process rewards on GAIA for MATPO-PR"><br>
+        <em>Visualization of process rewards on GAIA for MATPO-PR</em>
+      </td>
+    </tr>
+  </table>
+</div>
 
 
 <p align="center">
   <em>
-MATPO-PR enhances the original [MATPO-PR](https://github.com/mzf666/MATPO) by integrating process rewards (a core formulation can be adopted by state-of-the-art agentic systems), achieving an 7.81% relative improvement over single-agent baselines on GAIA-text, FRAMES, and WebWalker-QA in this paper.
+MATPO-PR enhances the original [MATPO-PR](https://github.com/mzf666/MATPO) by integrating process rewards (a core formulation that can be adopted by arbitrary state-of-the-art agentic systems), achieving an 7.81% relative improvement over MATPO on GAIA-text, FRAMES, and WebWalker-QA in this paper.
   </em>
 </p>
 
@@ -87,7 +97,7 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Pro
    - Generates high-level plan and decomposes it into subtasks
    - Delegates subtasks to worker agents
    - Synthesizes worker responses into final answer
-   - We compute intermediate rewards after every sub-agent invocation by measuring the accuracy of the partial answer (made according to the available information).
+   - Process rewards are calculated following each sub-agent execution (by the main agent), determined by the correctness of the answer, which is made based on the accumulated context at each step
 
 2. **Worker Agent**:
    - Receives subtask with worker-specific system prompt
@@ -97,9 +107,10 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Pro
 
 3. **Credit Assignment**:
    - Final answer accuracy determines the reward
-   - Reward is normalized across all planner-worker rollout groups
-   - Gradient flows to both planner actions and worker actions proportionally
+   - The process reward is derived from the accuracy of intermediate answers generated at various execution steps
    - Reward is accumulated into returns to conduct the GRPO.
+   - Advantage is obtained by normalizing across all planner-worker rollout groups
+   - Gradient flows to both planner actions and worker actions proportionally
 
 <p align="center">
   <table>
