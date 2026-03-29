@@ -1,21 +1,22 @@
 <div align="center">
 
-# MATPO: Multi-Agent Tool-Integrated Policy Optimization
+# MATPO-PR: Multi-Agent Tool-Integrated Policy Optimization with Process Reward
 
-Train Multiple Agent Roles Within a Single LLM via Reinforcement Learning.
+Train Multiple Agent Roles Within a Single LLM via Reinforcement Learning with Process Reward.
+This is an upgraded implementation of MATPO.
 
 <!-- [![arXiv](https://img.shields.io/badge/arXiv-Coming_Soon.svg)](https://arxiv.org/pdf/2510.04678)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
-[![Code](https://img.shields.io/badge/code-GitHub-black.svg)](https://github.com/mzf666/MATPO) -->
+[![Code](https://img.shields.io/badge/code-GitHub-black.svg)](https://github.com/xiaogang00/MATPO-PR) -->
 
 <!-- <hr> -->
-<div align="center">
 
+<div align="center">
 [![Models](https://img.shields.io/badge/Models-5EDDD2?style=for-the-badge&logo=huggingface&logoColor=ffffff&labelColor)](https://huggingface.co/veggiebird/MATPO-14b)
 [![Data](https://img.shields.io/badge/Data-0040A1?style=for-the-badge&logo=huggingface&logoColor=ffffff&labelColor)](https://huggingface.co/datasets/veggiebird/MATPO-data)
 [![Paper](https://img.shields.io/badge/Paper-000000?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2510.04678)
-[![Github](https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mzf666/MATPO)
+[![Github](https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/xiaogang00/MATPO-PR)
 </div>
 
 
@@ -25,53 +26,36 @@ Train Multiple Agent Roles Within a Single LLM via Reinforcement Learning.
   <table>
     <tr>
       <td align="center">
-        <img src="assets/main_gaia.png" width="220px" alt="GAIA Results"><br>
-        <em>GAIA Results</em>
-      </td>
-      <td align="center">
-        <img src="assets/main_frameqa.png" width="220px" alt="FRAMES Results"><br>
-        <em>FRAMES Results</em>
-      </td>
-      <td align="center">
-        <img src="assets/main_webwalkerqa.png" width="220px" alt="WebWalkerQA Results"><br>
-        <em>WebWalkerQA Results</em>
+        <img src="assets/score_lines.png" width="660px" alt="GAIA Results"><br>
+        <em>GAIA, FRAMES, WebWalkerQA Results</em>
       </td>
     </tr>
   </table>
 </div>
 
 <p align="center">
-  <img src="assets/multi_agent_framework.png" width="500px" alt="MATPO Framework">
+  <img src="assets/reward_heatmap_baseline_val2.png" width="300px" alt="Visualization of process rewards on GAIA for MATPO">
+    <img src="assets/reward_heatmap_ours_val2.png" width="300px" alt="Visualization of process rewards on GAIA for MATPO-PR">
 </p>
 
 
 <p align="center">
-  <em>MATPO allows planner and worker agents to coexist within a single LLM and be trained via RL, achieving an 18.38% relative improvement over single-agent baselines on GAIA-text, FRAMES, and WebWalker-QA.</em>
+  <em>
+MATPO-PR enhances the original [MATPO](https://github.com/mzf666/MATPO) by integrating process rewards (a core formulation can be adopted by state-of-the-art agentic systems), achieving an 7.81% relative improvement over single-agent baselines on GAIA-text, FRAMES, and WebWalker-QA in this paper.
+  </em>
 </p>
 
 ## News & Updates
 
-- **[2025-Oct-31]** Enabled LoRA support for MATPO training
-- **[2025-Oct-31]** Quick start guide with PyTorch basic docker image released
-- **[2025-Oct-08]** MATPO-Qwen3-14B checkpoints and rollouts released
-- **[2025-Oct-08]** Code and training scripts released
-- **[2025-Oct-06]** Arxiv Paper released
-
+- **[2026-Apr-08]** Code and training scripts released
+- **[2026-Apr-06]** Arxiv Paper released
 
 ## Overview
 
 **MATPO** (Multi-Agent Tool-Integrated Policy Optimization) is a novel reinforcement learning framework that enables training multiple specialized agent roles (planner and worker agents) within a single large language model. 
 
-### The Problem
-Current single-agent approaches for multi-turn tool-integrated planning face critical limitations:
-- **Context Length Bottleneck**: Tool responses (e.g., web scraping) consume excessive tokens, making long-range planning prohibitive
-- **Noisy Tool Responses**: Raw tool responses interfere with the model's attention and planning capabilities
 
-### Our Solution
-MATPO introduces a **multi-agent-in-one-model** architecture where:
-- A **planner-agent** orchestrates high-level planning and delegates subtasks
-- **Worker-agents** handle specific browsing and search tasks with isolated contexts
-- Both roles are trained within a **single LLM** using role-specific prompts via reinforcement learning
+**MATPO-PR** (Multi-Agent Tool-Integrated Policy Optimization with Process Reward) improves upon the original MATPO by introducing intermediate rewards for reinforcement learning. As this formulation is highly compatible with various agentic frameworks, our future roadmap includes extending this capability to platforms like OpenClaw.
 
 
 ## Key Features
@@ -88,21 +72,11 @@ MATPO introduces a **multi-agent-in-one-model** architecture where:
 MATPO employs a hierarchical multi-agent framework where a single LLM serves multiple roles:
 
 ```
-User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1
-                           → Subtask 2 → Worker Agent → Result 2
+User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Process Reward 1 → Process Return 1
+                           → Subtask 2 → Worker Agent → Result 2 → Process Reward 2 → Process Return 2
                            → ...
-                           → Final Answer
+                           → Final Answer → Reward
 ```
-
-
-<p align="center">
-  <img src="assets/single_agent.png" width="600px" alt="Single-agent GRPO Framework">
-  <img src="assets/multi_agent_RL_rollout.png" width="600px" alt="MATPO Framework">
-</p>
-
-<p align="center">
-  <em>Comparison between the rollout trajectories between the single-agent GRPO (top) and the multi-agent MATPO (bottom).</em>
-</p>
 
 
 ### Multi-Agent Rollout Process
@@ -112,6 +86,7 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1
    - Generates high-level plan and decomposes it into subtasks
    - Delegates subtasks to worker agents
    - Synthesizes worker responses into final answer
+   - We compute intermediate rewards after every sub-agent invocation by measuring the accuracy of the partial answer (made according to the available information).
 
 2. **Worker Agent**:
    - Receives subtask with worker-specific system prompt
@@ -123,17 +98,22 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1
    - Final answer accuracy determines the reward
    - Reward is normalized across all planner-worker rollout groups
    - Gradient flows to both planner actions and worker actions proportionally
-
- 
-<p align="center">
-  <img src="assets/multi-agent-grpo-implementation.png" width="600px" alt="MATPO Framework">
-</p>
+   - Reward is accumulated into returns to conduct the GRPO.
 
 <p align="center">
-  <em>Visualization of MATPO implementation.</em>
+  <table>
+    <tr>
+      <td align="center">
+        <img src="assets/MATPO_rollout_compact.png" width="330px" alt="GAIA Results"><br>
+        <em>Rollout and Reward of MATPO</em>
+      </td>
+      <td align="center">
+        <img src="assets/MATPO_PR_rollout.png" width="330px" alt="GAIA Results"><br>
+        <em>Rollout and Reward of MATPO-PR</em>
+      </td>
+    </tr>
+  </table>
 </p>
-
-
 
 ## Quick Start
 
@@ -147,8 +127,8 @@ Prerequisites:
 **Step 1**: Clone the repository.
 ```bash
 cd YOUR_WORKING_DIR
-git clone https://github.com/mzf666/MATPO.git
-cd MATPO
+git clone https://github.com/xiaogang00/MATPO-PR.git
+cd MATPO-PR
 ```
 
 **Step 2**: Download the training and testing datasets to the `data` directory. The prerpocessed datasets can be downloaded [here](https://huggingface.co/datasets/veggiebird/MATPO-data).
@@ -159,10 +139,10 @@ docker pull pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 docker run -it \
     --gpus all \
     --shm-size 16gb \
-    --name matpo \
-    -v YOUR_WORKING_DIR/MATPO:/workspace/MATPO:rw \
+    --name matpo-pr \
+    -v YOUR_WORKING_DIR/MATPO-PR:/workspace/MATPO-PR:rw \
     -v YOUR_WORKING_DIR/models:/workspace/models \
-    -w /workspace/MATPO \
+    -w /workspace/MATPO-PR \
     pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel \
     /bin/bash
 ```
@@ -172,7 +152,7 @@ Now you are in the PyTorch docker container.
 ```bash
 # Execute the following commands inside the docker container
 
-# Create a new conda environment for MATPO
+# Create a new conda environment for MATPO-PR
 conda create -n matpo python==3.10 -y
 conda init bash
 source /opt/conda/etc/profile.d/conda.sh
@@ -180,7 +160,7 @@ conda activate matpo
 
 # Install the python dependencies
 # You are highy recommended to execute the commands in the install.sh script one by one.
-source /workspace/MATPO/examples/sglang_multiturn/install.sh
+source /workspace/MATPO-PR/examples/sglang_multiturn/install.sh
 ```
 
 **Step 5**: Setup Node.js for Serper API support inside the docker container. 
@@ -212,36 +192,12 @@ npm init -y
 npm install serper-search-scrape-mcp-server
 
 # Back to MATPO repository
-cd /workspace/MATPO 
-```
-
-**Step 6**: Test the environment setup and run single-node training. Train a Qwen3-4B model with MATPO on the MuSiQue dataset and evaluate on the GAIA-text datasets. 
-
-Remember to adjust the directory paths in `examples/sglang_multiturn/launch.sh` accordingly, e.g. `YOUR_NODEJS_HOME=/workspace/nodejs/node-v24.2.0-linux-x64` and `YOUR_NODE_SHARED=/workspace/nodejs/node-shared/node_modules`.
-
-```bash
-# Execute the following commands inside the docker container
-# Tested on 1 x (8 x 80G-A800) nodes
-
-#!/bin/bash
-source /opt/conda/etc/profile.d/conda.sh
-export SERPER_API_KEY="YOUR_SERPER_API_KEY"
-export OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
-export WANDB_API_KEY="YOUR_WANDB_API_KEY"
-export SINGLENODE=true
-export RAY_DEBUG=legacy
-export HYDRA_FULL_ERROR=1
-conda activate matpo
-cd /workspace/MATPO
-bash ./examples/sglang_multiturn/launch.sh \
-    examples/sglang_multiturn/qwen3-4b_musique_single_agent.sh
-
-# bash ./examples/sglang_multiturn/run_in_docker/launch.sh ./examples/sglang_multiturn/run_in_docker/qwen3-4b_musique_single_agent.sh
+cd /workspace/MATPO-PR 
 ```
 
 If you counter any issues during the environment setup, you can refer to the `examples/sglang_multiturn/pip_list_reference.txt` for the expected python dependencies list and check the installation process step by step.
 
-**Step 7**: Train a Qwen3-14B model with MATPO on the MuSiQue dataset and evaluate on the GAIA-text datasets using computation platforms with multiple GPU nodes. Remember to adjust the directory paths in `examples/sglang_multiturn/launch.sh` accordingly. 
+**Step 6**: Train a Qwen3-14B model with MATPO on the MuSiQue dataset and evaluate on the GAIA-text datasets using computation platforms with multiple GPU nodes. Remember to adjust the directory paths in `examples/sglang_multiturn/launch.sh` accordingly. 
 
 ```bash
 # tested on 16 x (8 x 80G-A800) nodes
@@ -258,7 +214,25 @@ bash examples/sglang_multiturn/launch.sh \
     examples/sglang_multiturn/qwen3-14b_musique_MATPO.sh
 ```
 
-Evaluate a trained MATPO / single-agent model checkpoint.
+Similarly, train the model with MATPO-PR as the following.
+
+```bash
+# tested on 16 x (8 x 80G-A800) nodes
+
+export SERPER_API_KEY="YOUR_SERPER_API_KEY" && \
+export OPENAI_API_KEY="YOUR_OPENAI_API_KEY" && \
+export WANDB_API_KEY="YOUR_WANDB_API_KEY" && \
+export SINGLENODE=true && \
+export RAY_DEBUG=legacy && \
+export HYDRA_FULL_ERROR=1 && \
+source YOUR_CONDA_PATH activate matpo && \
+cd YOUR_PROJECT_PATH && \
+bash examples/sglang_multiturn/launch.sh \
+    examples/sglang_multiturn/qwen3-14b_musique_MATPO_turn.sh
+```
+
+
+Evaluate a trained MATPO / MATPO-PR checkpoint.
 ```bash
 # test on 2 x (8 x 80G-A800) nodes
 
@@ -278,64 +252,35 @@ bash examples/sglang_multiturn/launch.sh \
 #     examples/sglang_multiturn/eval_single_agent.sh
 ```
 
-## LoRA-enabled MATPO training
-
-We enabled LoRA support for MATPO training. Please refer to `MATPO_LORA_README.md` for more illustrations. An example command for LoRA-enabled MATPO training on Qwen3-4B is provided below:
- 
-```bash
-# Execute the following commands inside the docker container
-# Tested on 1 x (8 x 80G-A800) nodes
-
-#!/bin/bash
-source /opt/conda/etc/profile.d/conda.sh
-export SERPER_API_KEY="YOUR_SERPER_API_KEY"
-export OPENAI_API_KEY="YOUR_OPENAI_API_KEY"
-export WANDB_API_KEY="YOUR_WANDB_API_KEY"
-export SINGLENODE=true
-export RAY_DEBUG=legacy
-export HYDRA_FULL_ERROR=1
-conda activate matpo
-cd /workspace/MATPO
-bash ./examples/sglang_multiturn/launch.sh \
-    examples/sglang_multiturn/qwen3-4b_musique_MATPO_lora.sh
-```
-
-⚠️ **Disclaimer**: While the LoRA-enabled MATPO training script is provided, its performance **is not thoroughly evaluated and guaranteed**. LoRA-enabled MATPO training is still an active research area and there may be better ways to train MATPO with LoRA. We welcome any feedback and contributions to evaluate and improve the LoRA-enabled MATPO training performance.
-
 ## Experiments and Results
 
 ### Main Results
 
 MATPO consistently outperforms single-agent GRPO baselines across all benchmarks:
 
-| Method | GAIA-text | WebWalkerQA | FRAMES | Relative Average Improvement |
-|--------|-----------|-------------|---------|---------------------|
-| Single-Agent GRPO | 32.16% | 30.14% | 56.22% | - |
-| **MATPO (Ours)** | **42.60%** | **33.00%** | **63.64%** | **+18.38%** |
+| Method | GAIA-text | WebWalkerQA | FRAMES |
+|--------|-----------|-------------|---------|
+| Single-Agent GRPO | 33.89% | 28.97% | 57.34% |
+| **MATPO** | **36.89%** | **30.29%** | **62.14%** |
+| **MATPO-PR** | **40.90%** | **33.09%** | **64.20%** |
 
 ### Training Configuration
 
 - **Base Model**: Qwen3-14B-base
 - **Training Dataset**: Filtered MuSiQue dataset.
-- **Training Steps**: 180 steps
+- **Training Steps**: 120 steps
 - **Rollouts per Query**: 8 (for group normalization)
 - **Reward Function**: 0.9 × accuracy + 0.1 × tool_format_reward
 
 ### Model Checkpoints and Rollouts
 
-
-We release the trained Qwen3-14B-base model checkpoints at the 180th training step of both [single-agent GRPO](https://huggingface.co/veggiebird/MATPO-single-agent-14b) and [MATPO](https://huggingface.co/veggiebird/MATPO-14b).
-
-The associated model rollouts across various training steps can be found [here](https://huggingface.co/datasets/veggiebird/MATPO-rollout).
-
+We release the trained Qwen3-14B-base model checkpoints at the 120th training step of both [single-agent GRPO](https://huggingface.co/veggiebird/MATPO-single-agent-14b) and [MATPO](https://huggingface.co/veggiebird/MATPO-14b) and [MATPO-PR](https://huggingface.co/veggiebird/MATPO-14b)
 
 ### Key Findings
 
-- **More Stable Training**: MATPO exhibits more stable learning curves and avoids catastrophic performance drops observed in single-agent training
+- **More Stable Training**: MATPO-PR exhibits more stable learning curves and avoids catastrophic performance drops observed in MATPO and single-agent training
 
-- **Robustness to Noise**: Multi-agent decomposition effectively isolates noisy tool responses, preventing them from interfering with high-level planning
-
-- **Better Credit Assignment**: Principled reward distribution across planner and worker rollouts leads to more effective learning
+- **Better Credit Assignment**: Principled reward distribution across planner and worker rollouts leads to more effective learning than MATPO
 
 
 ### Practical Implementation Tips
@@ -514,7 +459,7 @@ You can customize your own rollout orchestration by modifying the logic and sche
 
 ## Citation
 
-If you find MATPO helpful in your research, please consider citing our paper:
+If you find MATPO-PR helpful in your research, please consider citing our paper:
 
 ```bibtex
 @misc{mo2025multiagenttoolintegratedpolicyoptimization,
@@ -533,6 +478,7 @@ If you find MATPO helpful in your research, please consider citing our paper:
 
 We would like to thank:
 
+- [MATPO](https://github.com/mzf666/MATPO)
 - **VolcEngine** for developing and open-sourcing [veRL](https://github.com/volcengine/verl), the RL training framework that powers MATPO
 - **Alibaba Cloud** for the Qwen3 model series
 - **Google** for the Serper API that enables web search capabilities
@@ -543,19 +489,21 @@ We would like to thank:
 ## FAQ
 
 <details>
-<summary><b>Q: What's the difference between MATPO and traditional multi-agent systems?</b></summary>
+<summary><b>Q: What's the difference between MATPO and MATPO-PR</b></summary>
 
-MATPO uses a single LLM to play multiple agent roles via different system prompts, rather than deploying separate models. This offers:
-- Lower infrastructure complexity
-- Better parameter efficiency
-- Easier deployment and maintenance
-- Compatible with existing RL frameworks
+MATPO-PR enhances the MATPO framework by introducing step-wise intermediate rewards. At each step, the main agent attempts to generate the target answer using the current available context to determine the reward. These process rewards are aggregated into a process return, which is then normalized across all rollouts to compute the GRPO advantage using global mean and variance.
 </details>
 
 <details>
 <summary><b>Q: Can I use MATPO with models other than Qwen3?</b></summary>
 
-Yes! MATPO is model-agnostic. You can use any decoder-only LLM that supports tool calling and multi-turn conversations. We've tested with Qwen3-14B-base, but models like Llama 3, Mistral, or other reasoning-capable LLMs should work.
+Yes! MATPO-PR and MATPO is model-agnostic. You can use any decoder-only LLM that supports tool calling and multi-turn conversations. We've tested with Qwen3-14B-base, but models like Llama 3, Mistral, or other reasoning-capable LLMs should work.
+</details>
+
+<details>
+<summary><b>Q: Can I apply MATPO-PR into other agentic frameworks?</b></summary>
+
+Yes! Our process reward mechanism is designed for any multi-turn agentic system. It enables the computation of step-wise rewards at critical rounds of task execution. We are currently working on integrating this approach into existing ecosystems such as OpenClaw. We invite the community to follow our progress as we expand these capabilities.
 </details>
 
 <details>
@@ -610,11 +558,11 @@ For production systems with no data leakage concerns, this is optional.
 
 ## Star History
 
-<a href="https://star-history.com/#mzf666/MATPO&Date">
+<a href="https://star-history.com/#xiaogang00/MATPO-PR&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=mzf666/MATPO&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=mzf666/MATPO&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=mzf666/MATPO&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date" />
  </picture>
 </a>
 
