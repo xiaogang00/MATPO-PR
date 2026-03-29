@@ -3,7 +3,7 @@
 # MATPO-PR: Multi-Agent Tool-Integrated Policy Optimization with Process Reward
 
 Train Multiple Agent Roles Within a Single LLM via Reinforcement Learning with Process Reward.
-This is an upgraded implementation of MATPO.
+MATPO-PR is an upgraded implementation of MATPO.
 
 <!-- [![arXiv](https://img.shields.io/badge/arXiv-Coming_Soon.svg)](https://arxiv.org/pdf/2510.04678)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
@@ -41,7 +41,7 @@ This is an upgraded implementation of MATPO.
 
 <p align="center">
   <em>
-MATPO-PR enhances the original [MATPO](https://github.com/mzf666/MATPO) by integrating process rewards (a core formulation can be adopted by state-of-the-art agentic systems), achieving an 7.81% relative improvement over single-agent baselines on GAIA-text, FRAMES, and WebWalker-QA in this paper.
+MATPO-PR enhances the original [MATPO-PR](https://github.com/mzf666/MATPO) by integrating process rewards (a core formulation can be adopted by state-of-the-art agentic systems), achieving an 7.81% relative improvement over single-agent baselines on GAIA-text, FRAMES, and WebWalker-QA in this paper.
   </em>
 </p>
 
@@ -62,14 +62,15 @@ MATPO-PR enhances the original [MATPO](https://github.com/mzf666/MATPO) by integ
 
 - **Multi-Agent-in-One-Model**: Train planner and worker agents within a single LLM using role-specific system prompts
 - **Principled Credit Assignment**: Extends GRPO with theoretically grounded reward distribution across planner and worker rollouts
+- **Process Reward and Return**: Compute granular process rewards and returns within RL loops to refine intermediate logic and boost end-to-end success rates
 - **Easy Integration**: Built on top of [veRL](https://github.com/volcengine/verl), compatible with existing RL training frameworks
 - **Robust Training**: More stable learning curves compared to single-agent approaches, especially with noisy tool responses
 - **Infrastructure Efficient**: No need for deployment of separate models or additional rollout engines
 
 
-## MATPO Architecture
+## MATPO-PR Architecture
 
-MATPO employs a hierarchical multi-agent framework where a single LLM serves multiple roles:
+MATPO-PR employs a hierarchical multi-agent framework where a single LLM serves multiple roles:
 
 ```
 User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Process Reward 1 → Process Return 1
@@ -139,7 +140,7 @@ docker pull pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 docker run -it \
     --gpus all \
     --shm-size 16gb \
-    --name matpo-pr \
+    --name matpo \
     -v YOUR_WORKING_DIR/MATPO-PR:/workspace/MATPO-PR:rw \
     -v YOUR_WORKING_DIR/models:/workspace/models \
     -w /workspace/MATPO-PR \
@@ -256,13 +257,20 @@ bash examples/sglang_multiturn/launch.sh \
 
 ### Main Results
 
-MATPO consistently outperforms single-agent GRPO baselines across all benchmarks:
+MATPO-PR consistently outperforms MATPO and single-agent GRPO baselines across all benchmarks:
 
 | Method | GAIA-text | WebWalkerQA | FRAMES |
 |--------|-----------|-------------|---------|
 | Single-Agent GRPO | 33.89% | 28.97% | 57.34% |
 | **MATPO** | **36.89%** | **30.29%** | **62.14%** |
 | **MATPO-PR** | **40.90%** | **33.09%** | **64.20%** |
+
+### Note on Result Variability Due to External Tools
+
+During our experiments, we observed that agent performance (e.g., MATPO) may vary over time due to changes in the external tools and servers they access.
+Upon investigation, we identified the primary cause as changes in the Serper API, a critical tool for Google search and web scraping. Specifically, we found that this API has recently undergone parameter changes, particularly in its Google search component.
+
+This is why the performance metrics for MATPO and Single-Agent GRPO deviate slightly from the original [MATPO-PR](https://github.com/mzf666/MATPO) implementation.
 
 ### Training Configuration
 
@@ -491,11 +499,11 @@ We would like to thank:
 <details>
 <summary><b>Q: What's the difference between MATPO and MATPO-PR</b></summary>
 
-MATPO-PR enhances the MATPO framework by introducing step-wise intermediate rewards. At each step, the main agent attempts to generate the target answer using the current available context to determine the reward. These process rewards are aggregated into a process return, which is then normalized across all rollouts to compute the GRPO advantage using global mean and variance.
+MATPO-PR enhances the MATPO by introducing step-wise intermediate rewards. At each step, the main agent attempts to generate the target answer using the current available context to determine the reward. These process rewards are aggregated into a process return, which is then normalized across all rollouts to compute the GRPO advantage using global mean and variance.
 </details>
 
 <details>
-<summary><b>Q: Can I use MATPO with models other than Qwen3?</b></summary>
+<summary><b>Q: Can I use MATPO/MATPO-PR with models other than Qwen3?</b></summary>
 
 Yes! MATPO-PR and MATPO is model-agnostic. You can use any decoder-only LLM that supports tool calling and multi-turn conversations. We've tested with Qwen3-14B-base, but models like Llama 3, Mistral, or other reasoning-capable LLMs should work.
 </details>
