@@ -86,7 +86,7 @@ MATPO-PR employs a hierarchical multi-agent framework where a single LLM serves 
 User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Reward 1 → Return 1
                            → Subtask 2 → Worker Agent → Result 2 → Reward 2 → Return 2
                            → ...
-                           → Final Answer → Reward
+                           → Final Answer → Final Answer Reward
 ```
 
 
@@ -106,9 +106,9 @@ User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Rew
    - Maintains isolated context to prevent token overflow
 
 3. **Credit Assignment**:
-   - Final answer accuracy determines the reward
+   - Final answer accuracy determines the corresponding reward
    - The process reward is derived from the accuracy of intermediate answers generated at various execution steps
-   - Reward is accumulated into returns to conduct the GRPO.
+   - Reward is accumulated into returns to conduct the GRPO
    - Advantage is obtained by normalizing across all planner-worker rollout groups
    - Gradient flows to both planner actions and worker actions proportionally
 
@@ -286,7 +286,7 @@ This is why the performance metrics for MATPO and Single-Agent GRPO deviate slig
 ### Training Configuration
 
 - **Base Model**: Qwen3-14B-base
-- **Training Dataset**: Filtered MuSiQue dataset.
+- **Training Dataset**: Filtered MuSiQue dataset
 - **Training Steps**: 120 steps
 - **Rollouts per Query**: 8 (for group normalization)
 - **Reward Function**: 0.9 × accuracy + 0.1 × tool_format_reward
