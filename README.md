@@ -8,15 +8,15 @@ This is an upgraded implementation of MATPO.
 <!-- [![arXiv](https://img.shields.io/badge/arXiv-Coming_Soon.svg)](https://arxiv.org/pdf/2510.04678)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/)
-[![Code](https://img.shields.io/badge/code-GitHub-black.svg)](https://github.com/xiaogang00/MATPO-PR) -->
+[![Code](https://img.shields.io/badge/code-GitHub-black.svg)](https://github.com/mzf666/MATPO) -->
 
 <!-- <hr> -->
-
 <div align="center">
+
 [![Models](https://img.shields.io/badge/Models-5EDDD2?style=for-the-badge&logo=huggingface&logoColor=ffffff&labelColor)](https://huggingface.co/veggiebird/MATPO-14b)
 [![Data](https://img.shields.io/badge/Data-0040A1?style=for-the-badge&logo=huggingface&logoColor=ffffff&labelColor)](https://huggingface.co/datasets/veggiebird/MATPO-data)
 [![Paper](https://img.shields.io/badge/Paper-000000?style=for-the-badge&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2510.04678)
-[![Github](https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/xiaogang00/MATPO-PR)
+[![Github](https://img.shields.io/badge/Code-000000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/mzf666/MATPO)
 </div>
 
 
@@ -516,7 +516,7 @@ For Qwen3-14B-base, we recommend:
 </details>
 
 <details>
-<summary><b>Q: How does MATPO handle credit assignment?</b></summary>
+<summary><b>Q: How does MATPO and MATPO handle credit assignment?</b></summary>
 
 MATPO extends GRPO with principled credit assignment:
 1. The planner's final answer determines the accuracy reward
@@ -524,28 +524,24 @@ MATPO extends GRPO with principled credit assignment:
 3. Gradients flow proportionally to both planner and worker actions
 4. Worker agents receive the same advantage value as their parent planner rollout
 
+MATPO-PR enhances MATPO by incorporating a process-based reward mechanism:
+1. Step-wise Evaluation: After each worker agent invocation, the main agent computes a process reward based on the current intermediate state
+2. Process Isolation: The rollout for process rewards is decoupled from the primary MATPO process after acquisition to prevent interference with the core rollout
+3. Reward Aggregation: Once the rollout is complete, all individual process rewards are aggregated to derive the final process return
+4. Advantage Calculation: The advantage is computed by calculating the mean and variance across the final rewards and process returns of all rollouts
+
+
 See our paper for more details.
 </details>
 
 <details>
-<summary><b>Q: Can I use MATPO for tasks other than web search?</b></summary>
+<summary><b>Q: Can I use MATPO/MATPO-PR for tasks other than web search?</b></summary>
 
-Absolutely! While our paper focuses on web search, MATPO's framework is general. You can extend it to:
+Absolutely! While our paper focuses on web search, the framework of MATPO/MATPO-PR is general. You can extend it to:
 - Code generation with execution feedback
 - Scientific reasoning with calculator tools
 - Data analysis with pandas/SQL tools
 - Any multi-turn task with verifiable rewards
-</details>
-
-<details>
-<summary><b>Q: How stable is MATPO training compared to single-agent RL?</b></summary>
-
-MATPO is significantly more stable. Our experiments show:
-- Single-agent GRPO often suffers catastrophic drops after step 120
-- MATPO maintains steady improvement throughout training
-- Multi-agent structure isolates noisy tool responses, preventing interference
-
-See Figure 4 in our paper for training curves.
 </details>
 
 <details>
@@ -555,19 +551,3 @@ For research integrity, yes - especially if your evaluation benchmarks are hoste
 
 For production systems with no data leakage concerns, this is optional.
 </details>
-
-## Star History
-
-<a href="https://star-history.com/#xiaogang00/MATPO-PR&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=xiaogang00/MATPO-PR&type=Date" />
- </picture>
-</a>
-
------
-
-<p align="center">
-  <strong>Star ⭐ this repository if you find it helpful!</strong>
-</p>
