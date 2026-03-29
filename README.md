@@ -65,7 +65,7 @@ MATPO-PR enhances the original [MATPO-PR](https://github.com/mzf666/MATPO) by in
 **MATPO** (Multi-Agent Tool-Integrated Policy Optimization) is a novel reinforcement learning framework that enables training multiple specialized agent roles (planner and worker agents) within a single large language model. 
 
 
-**MATPO-PR** (Multi-Agent Tool-Integrated Policy Optimization with Process Reward) improves upon the original MATPO by introducing intermediate rewards for reinforcement learning. As this formulation is highly compatible with various agentic frameworks, our future roadmap includes extending this capability to platforms like OpenClaw.
+**MATPO-PR** (Multi-Agent Tool-Integrated Policy Optimization with Process Reward) improves upon the original MATPO by introducing process rewards for reinforcement learning. As this formulation is highly compatible with various agentic frameworks, our future roadmap includes extending this capability to platforms like OpenClaw.
 
 
 ## Key Features
@@ -510,7 +510,7 @@ We would like to thank:
 <details>
 <summary><b>Q: What's the difference between MATPO and MATPO-PR</b></summary>
 
-MATPO-PR enhances the MATPO by introducing step-wise intermediate rewards. At each step, the main agent attempts to generate the target answer using the current available context to determine the reward. These process rewards are aggregated into a process return, which is then normalized across all rollouts to compute the GRPO advantage using global mean and variance.
+MATPO-PR enhances the MATPO by introducing step-wise process rewards. At each step, the main agent attempts to generate the target answer using the current available context to determine the reward. These process rewards are aggregated into a process return, which is then normalized across all rollouts to compute the GRPO advantage using global mean and variance.
 </details>
 
 <details>
