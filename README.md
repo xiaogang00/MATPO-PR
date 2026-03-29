@@ -83,8 +83,8 @@ MATPO-PR enhances the original [MATPO-PR](https://github.com/mzf666/MATPO) by in
 MATPO-PR employs a hierarchical multi-agent framework where a single LLM serves multiple roles:
 
 ```
-User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Process Reward 1 → Process Return 1
-                           → Subtask 2 → Worker Agent → Result 2 → Process Reward 2 → Process Return 2
+User Query → Planner Agent → Subtask 1 → Worker Agent → Result 1 → Reward 1 → Return 1
+                           → Subtask 2 → Worker Agent → Result 2 → Reward 2 → Return 2
                            → ...
                            → Final Answer → Reward
 ```
